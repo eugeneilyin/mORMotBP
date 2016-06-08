@@ -1,0 +1,1668 @@
+unit BoilerplateTests;
+
+interface
+
+uses
+  SynZip,
+  SynTests,
+  BoilerplateAssets,
+  BoilerplateHTTPServer;
+
+type
+  TBoilerplateHTTPServerShould = class(TSynTestCase)
+    procedure CallInherited;
+    procedure ServeExactCaseURL;
+    procedure LoadAndReturnAssets;
+    procedure SpecifyCrossOrigin;
+    procedure SpecifyCrossOriginForImages;
+    procedure SpecifyCrossOriginForFonts;
+    procedure SpecifyCrossOriginTiming;
+    procedure DelegateBadRequestTo404;
+    procedure DelegateForbiddenTo404;
+    procedure DelegateNotFoundTo404;
+    procedure SetXUACompatible;
+    procedure SetP3P;
+    procedure ForceMIMEType;
+    procedure ForceTextUTF8Charset;
+    procedure ForceUTF8Charset;
+    procedure ForceHTTPS;
+    procedure SupportWWWRewrite;
+    procedure SetXFrameOptions;
+    procedure SupportContentSecurityPolicy;
+    procedure DelegateBlocked;
+    procedure SupportStrictSSL;
+    procedure PreventMIMESniffing;
+    procedure EnableXSSFilter;
+    procedure DeleteXPoweredBy;
+    procedure FixMangledAcceptEncoding;
+    procedure SupportGZipByMIMEType;
+    procedure ForceGZipHeader;
+    procedure SetCacheNoTransform;
+    procedure SetCachePublic;
+    procedure EnableCacheByETag;
+    procedure EnableCacheByLastModified;
+    procedure SetExpires;
+    procedure SetCacheMaxAge;
+    procedure EnableCacheBusting;
+    procedure SupportStaticRoot;
+    procedure DelegateRootToIndex;
+    procedure DeleteServerInternalState;
+  end;
+
+  TBoilerplateTestsSuite = class(TSynTests)
+    procedure Register;
+  end;
+
+procedure CleanUp;
+
+implementation
+
+uses
+  SysUtils, SynCommons, SynCrtSock, mORMot, mORMotHttpServer;
+
+type
+  THttpServerRequestStub = class(THttpServerRequest)
+  private
+    FResult: Cardinal;
+  public
+    procedure Init;
+    property URL: SockString read FURL write FURL;
+    property Method: SockString read FMethod write FMethod;
+    property InHeaders: SockString read FInHeaders write FInHeaders;
+    property InContent: SockString read FInContent;
+    property InContentType: SockString read FInContentType;
+    property OutContent: SockString read FOutContent;
+    property OutContentType: SockString read FOutContentType;
+    property OutCustomHeaders: SockString read FOutCustomHeaders write FOutCustomHeaders;
+    property Result: Cardinal read FResult write FResult;
+    property UseSSL: boolean read FUseSSL write FUseSSL;
+  end;
+
+  TBoilerplateHTTPServerSteps = class(TBoilerplateHTTPServer)
+  private
+    FModel: TSQLModel;
+    FServer: TSQLRestServer;
+    FContext: THttpServerRequestStub;
+    FTestCase: TSynTestCase;
+  public
+    constructor Create(const TestCase: TSynTestCase;
+      const Auth: Boolean = False);
+    destructor Destroy; override;
+    procedure GivenClearServer;
+    procedure GivenAssets(const Name: string = 'ASSETS');
+    procedure GivenOptions(const AOptions: TBoilerplateOptions);
+    procedure GivenInHeader(const aName, aValue: RawUTF8);
+    procedure GivenOutHeader(const aName, aValue: RawUTF8);
+    procedure GivenServeExactCaseURL(const Value: Boolean = True);
+    procedure GivenWWWRewrite(const Value: TWWWRewrite = wwwOff);
+    procedure GivenContentSecurityPolicy(const Value: RawUTF8);
+    procedure GivenStrictSSL(const Value: TStrictSSL);
+    procedure GivenExpires(const Value: RawUTF8);
+    procedure GivenGZipLevel(const Value: TGZipLevel);
+    procedure GivenStaticRoot(const Value: TFileName);
+    procedure WhenRequest(const URL: SockString = '';
+      const Host: SockString = ''; const UseSSL: Boolean = False);
+    procedure ThenOutHeaderValueIs(const aName, aValue: RawUTF8);
+    procedure ThenOutContentIsEmpty;
+    procedure ThenOutContentEqualsFile(const FileName: TFileName); overload;
+    procedure ThenOutContentIsStaticFile(
+      const StaticFileName, FileName: TFileName); overload;
+    procedure ThenOutContentTypeIs(const Value: RawUTF8);
+    procedure ThenOutContentIs(const Value: RawByteString);
+    procedure ThenOutContentIsStatic(const FileName: TFileName);
+    procedure ThenRequestResultIs(const Value: Cardinal);
+  end;
+
+procedure TBoilerplateHTTPServerShould.SpecifyCrossOrigin;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    WhenRequest;
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
+
+    GivenClearServer;
+    GivenOptions([bpoAllowCrossOrigin]);
+    WhenRequest;
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
+
+    GivenClearServer;
+    GivenOptions([bpoAllowCrossOrigin]);
+    GivenInHeader('Origin', 'localhost');
+    WhenRequest;
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '*');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForFonts;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/fonts/Roboto-Regular.woff2');
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoAllowCrossOriginFonts]);
+    WhenRequest('/fonts/Roboto-Regular.woff2');
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoAllowCrossOriginFonts]);
+    GivenInHeader('Origin', 'localhost');
+    WhenRequest('/fonts/Roboto-Regular.woff2');
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '*');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForImages;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoAllowCrossOriginImages]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoAllowCrossOriginImages]);
+    GivenInHeader('Origin', 'localhost');
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '*');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginTiming;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoAllowCrossOriginTiming]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Timing-Allow-Origin', '*');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SupportContentSecurityPolicy;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Security-Policy', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Content-Security-Policy', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenContentSecurityPolicy('"script-src ''self''; object-src ''self''"');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Security-Policy',
+      '"script-src ''self''; object-src ''self''"');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenContentSecurityPolicy('"script-src ''self''; object-src ''self''"');
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Content-Security-Policy', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SupportGZipByMIMEType;
+var
+  Server: TBoilerplateHTTPServerSteps;
+  Data: RawByteString;
+  Level: TGZipLevel;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceMIMEType]);
+    GivenInHeader('Accept-Encoding', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceMIMEType]);
+    GivenInHeader('Accept-Encoding', 'gzip');
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Content-Encoding', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceMIMEType, bpoEnableGZipByMIMETypes]);
+    GivenInHeader('Accept-Encoding', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceMIMEType, bpoEnableGZipByMIMETypes]);
+    GivenInHeader('Accept-Encoding', 'gzip');
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Content-Encoding', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    for Level := Low(TGZipLevel) to High(TGZipLevel) do
+    begin
+      GivenClearServer;
+      GivenGZipLevel(Level);
+      GivenAssets;
+      GivenOptions([bpoEnableGZipByMIMETypes]);
+      GivenInHeader('Accept-Encoding', 'gzip');
+      WhenRequest('/index.html');
+      Data := StringFromFile('Assets\index.html');
+      CompressGZip(Data, Integer(Level));
+      ThenOutContentIs(Data);
+      ThenRequestResultIs(HTML_SUCCESS);
+    end;
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SupportStaticRoot;
+var
+  Server: TBoilerplateHTTPServerSteps;
+  StaticData, RequiredData: RawByteString;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenStaticRoot('static');
+    WhenRequest('/index.html');
+    ThenOutContentIsStaticFile('static\cache.plain\index.html',
+      'Assets\index.html');
+    DeleteFile('static\cache.plain\index.html');
+    RemoveDir('static\cache.plain');
+    RemoveDir('static');
+
+    GivenClearServer;
+    GivenGZipLevel(gz9);
+    GivenAssets;
+    GivenOptions([bpoEnableGZipByMIMETypes]);
+    GivenStaticRoot('static');
+    GivenInHeader('Accept-Encoding', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutContentIsStatic('static\cache.gz\index.html.9.gz');
+    StaticData := StringFromFile('static\cache.gz\index.html.9.gz');
+    RequiredData := StringFromFile('Assets\index.html');
+    CompressGZip(RequiredData, 9);
+    Check(StaticData = RequiredData);
+    DeleteFile('static\cache.gz\index.html.9.gz');
+    RemoveDir('static\cache.gz');
+    RemoveDir('static');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SupportStrictSSL;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLOff);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Strict-Transport-Security', '');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLOn);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Strict-Transport-Security', 'max-age=16070400');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLIncludeSubDomains);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Strict-Transport-Security',
+      'max-age=16070400; includeSubDomains');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SupportWWWRewrite;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenWWWRewrite(wwwOff);
+    GivenOptions([]);
+    WhenRequest('/index.html', 'www.domain.com');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenWWWRewrite(wwwOff);
+    GivenOptions([]);
+    WhenRequest('/index.html', 'www.domain.com', True);
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenWWWRewrite(wwwSuppress);
+    WhenRequest('/index.html', 'www.domain.com');
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location', 'http://domain.com/index.html');
+    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenWWWRewrite(wwwSuppress);
+    WhenRequest('/index.html', 'www.domain.com', True);
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location', 'https://domain.com/index.html');
+    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenWWWRewrite(wwwForce);
+    WhenRequest('/index.html', 'domain.com');
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location', 'http://www.domain.com/index.html');
+    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenWWWRewrite(wwwForce);
+    WhenRequest('/index.html', 'domain.com', True);
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location', 'https://www.domain.com/index.html');
+    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.CallInherited;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    WhenRequest;
+    ThenRequestResultIs(HTML_NOTFOUND);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateBadRequestTo404;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('root/12345');
+    ThenRequestResultIs(HTML_BADREQUEST);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateBadRequestTo404]);
+    WhenRequest('root/12345');
+    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenOutContentEqualsFile('Assets\404.html');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateBlocked;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    GivenAssets;
+    WhenRequest('/sample.conf');
+    ThenOutContentEqualsFile('Assets\sample.conf');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateBlocked]);
+    WhenRequest('/sample.conf');
+    ThenOutContentEqualsFile('Assets\404.html');
+    ThenRequestResultIs(HTML_NOTFOUND);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateForbiddenTo404;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self, True));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('root/12345');
+    ThenRequestResultIs(HTML_FORBIDDEN);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateForbiddenTo404]);
+    WhenRequest('root/12345');
+    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenOutContentEqualsFile('Assets\404.html');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateNotFoundTo404;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/12345');
+    ThenRequestResultIs(HTML_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    WhenRequest('/12345');
+    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenOutContentEqualsFile('Assets\404.html');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateRootToIndex;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('');
+    ThenOutContentIs('');
+    ThenRequestResultIs(HTML_BADREQUEST);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/');
+    ThenOutContentIs('');
+    ThenRequestResultIs(HTML_BADREQUEST);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateRootToIndex]);
+    WhenRequest('');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateRootToIndex]);
+    WhenRequest('/');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DeleteServerInternalState;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    GivenOutHeader('Server-InternalState', '1');
+    WhenRequest('');
+    ThenOutHeaderValueIs('Server-InternalState', '1');
+
+    GivenClearServer;
+    GivenOptions([bpoDeleteServerInternalState]);
+    GivenOutHeader('Server-InternalState', '1');
+    WhenRequest('');
+    ThenOutHeaderValueIs('Server-InternalState', '');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DeleteXPoweredBy;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    GivenOutHeader('X-Powered-By', '123');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-Powered-By', '123');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDeleteXPoweredBy]);
+    GivenOutHeader('X-Powered-By', '123');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-Powered-By', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.EnableCacheBusting;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html?123');
+    ThenRequestResultIs(HTML_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableCacheBusting]);
+    WhenRequest('/index.html?123');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.EnableCacheByETag;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('ETag', '');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    GivenInHeader('If-None-Match', '"6FECA093"');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('ETag', '');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableCacheByETag]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('ETag', '"6FECA093"');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableCacheByETag]);
+    GivenInHeader('If-None-Match', '"6FECA093"');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('ETag', '');
+    ThenOutContentIsEmpty;
+    ThenRequestResultIs(HTML_NOTMODIFIED);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.EnableCacheByLastModified;
+var
+  Server: TBoilerplateHTTPServerSteps;
+  Assets: TAssets;
+  LastModified: RawUTF8;
+begin
+  Assets.Init;
+  Assets.Add('Assets', 'Assets\index.html');
+  LastModified := DateTimeToHTTPDate(Assets.Assets[0].Modified);
+
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Last-Modified', '');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    GivenInHeader('If-Modified-Since', LastModified);
+    WhenRequest('/index.html');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenOutHeaderValueIs('Last-Modified', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableCacheByLastModified]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Last-Modified', LastModified);
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableCacheByLastModified]);
+    GivenInHeader('If-Modified-Since', LastModified);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Last-Modified', '');
+    ThenOutContentIsEmpty;
+    ThenRequestResultIs(HTML_NOTMODIFIED);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.EnableXSSFilter;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-XSS-Protection', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('X-XSS-Protection', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableXSSFilter]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-XSS-Protection', '1; mode=block');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableXSSFilter]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('X-XSS-Protection', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.FixMangledAcceptEncoding;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableGZipByMIMETypes]);
+    GivenInHeader('Accept-Encoding', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableGZipByMIMETypes]);
+    GivenInHeader('Accept-Encoding', 'gzip, deflate, sdch');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableGZipByMIMETypes]);
+    GivenInHeader('Accept-EncodXng', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableGZipByMIMETypes, bpoFixMangledAcceptEncoding]);
+    GivenInHeader('Accept-EncodXng', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableGZipByMIMETypes, bpoFixMangledAcceptEncoding]);
+    GivenInHeader('X-cept-Encoding', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.ForceGZipHeader;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/sample.svgz');
+    ThenOutHeaderValueIs('Content-Encoding', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceGZipHeader]);
+    WhenRequest('/img/sample.svgz');
+    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
+    ThenOutContentEqualsFile('Assets\img\sample.svgz');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.ForceHTTPS;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html', 'localhost');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceHTTPS]);
+    WhenRequest('/index.html', 'localhost');
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location', 'https://localhost/index.html');
+    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.ForceMIMEType;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.geojson');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.geojson');
+    ThenOutContentTypeIs('application/vnd.geo+json');
+  end;
+end;
+
+
+procedure TBoilerplateHTTPServerShould.LoadAndReturnAssets;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenAssets;
+    WhenRequest('/img/marmot.jpg');
+    ThenOutContentEqualsFile('Assets\img\marmot.jpg');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.PreventMIMESniffing;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-Content-Type-Options', '');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoPreventMIMESniffing]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-Content-Type-Options', 'nosniff');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.ForceTextUTF8Charset;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/index.html');
+    ThenOutContentTypeIs('text/html');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/index.txt');
+    ThenOutContentTypeIs('text/plain');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType, bpoForceTextUTF8Charset]);
+    WhenRequest('/index.html');
+    ThenOutContentTypeIs('text/html; charset=UTF-8');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType, bpoForceTextUTF8Charset]);
+    WhenRequest('/index.txt');
+    ThenOutContentTypeIs('text/plain; charset=UTF-8');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.ForceUTF8Charset;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/data.rss');
+    ThenOutContentTypeIs('application/rss+xml');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType, bpoForceUTF8Charset]);
+    WhenRequest('/data.rss');
+    ThenOutContentTypeIs('application/rss+xml; charset=UTF-8');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.ServeExactCaseURL;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    WhenRequest('/img/marmot.JPG', 'localhost');
+    ThenOutContentEqualsFile('Assets\img\marmot.jpg');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenServeExactCaseURL;
+    WhenRequest('/img/marmot.JPG', 'localhost');
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location', 'http://localhost/img/marmot.jpg');
+    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenServeExactCaseURL;
+    WhenRequest('/img/marmot.JPG', 'localhost', True);
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location', 'https://localhost/img/marmot.jpg');
+    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetCacheMaxAge;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'max-age=0');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('*=12');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'max-age=12');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=10');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'max-age=10');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=15s');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'max-age=15');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=20S');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'max-age=20');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=25h');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [25 * SecsPerHour]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=30H');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [30 * SecsPerHour]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=35d');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [35 * SecsPerDay]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=40D');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [40 * SecsPerDay]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=45w');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [45 * 7 * SecsPerDay]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=50W');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [50 * 7 * SecsPerDay]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=6m');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [6 * 2629746]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=7M');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [7 * 2629746]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=8y');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [8 * 365 * SecsPerDay]));
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMaxAge]);
+    GivenExpires('text/html=9Y');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control',
+      FormatUTF8('max-age=%', [9 * 365 * SecsPerDay]));
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetCacheNoTransform;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoTransform]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'no-transform');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetCachePublic;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoTransform]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'no-transform');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCachePublic]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'public');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCachePrivate]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'private');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoCache]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'no-cache');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoStore]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'no-store');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheMustRevalidate]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'must-revalidate');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCachePublic]);
+    GivenOutHeader('Cache-Control', 'max-age=0');
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Cache-Control', 'max-age=0, public');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetExpires;
+var
+  Server: TBoilerplateHTTPServerSteps;
+  LExpires: RawUTF8;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    LExpires := DateTimeToHTTPDate(NowUTC);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('*=12');
+    LExpires := DateTimeToHTTPDate(NowUTC + 12 / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=10');
+    LExpires := DateTimeToHTTPDate(NowUTC + 10 / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=15s');
+    LExpires := DateTimeToHTTPDate(NowUTC + 15 / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=20S');
+    LExpires := DateTimeToHTTPDate(NowUTC + 20 / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=25h');
+    LExpires := DateTimeToHTTPDate(NowUTC + 25 * SecsPerHour / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=30H');
+    LExpires := DateTimeToHTTPDate(NowUTC + 30 * SecsPerHour / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=35d');
+    LExpires := DateTimeToHTTPDate(NowUTC + 35);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=40D');
+    LExpires := DateTimeToHTTPDate(NowUTC + 40);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=45w');
+    LExpires := DateTimeToHTTPDate(NowUTC + 45 * 7);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=50W');
+    LExpires := DateTimeToHTTPDate(NowUTC + 50 * 7);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=6m');
+    LExpires := DateTimeToHTTPDate(NowUTC + 6 * 2629746 / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=7M');
+    LExpires := DateTimeToHTTPDate(NowUTC + 7 * 2629746 / SecsPerDay);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=8y');
+    LExpires := DateTimeToHTTPDate(NowUTC + 8 * 365);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetExpires]);
+    GivenExpires('text/html=9Y');
+    LExpires := DateTimeToHTTPDate(NowUTC + 9 * 365);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Expires', LExpires);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetP3P;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('P3P', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetP3P]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('P3P', 'policyref="/w3c/p3p.xml", CP="IDC ' +
+      'DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetXFrameOptions;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-Frame-Options', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('X-Frame-Options', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetXFrameOptions]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-Frame-Options', 'DENY');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetXFrameOptions]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('X-Frame-Options', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetXUACompatible;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-UA-Compatible', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('X-UA-Compatible', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetXUACompatible]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('X-UA-Compatible', 'IE=edge');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetXUACompatible]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('X-UA-Compatible', '');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateTestsSuite.Register;
+begin
+  AddCase(TBoilerplateHTTPServerShould);
+end;
+
+procedure THttpServerRequestStub.Init;
+begin
+  Prepare('', '', '', '', '');
+  FOutCustomHeaders := '';
+  FOutContentType := '';
+  FOutContent := '';
+  FResult := 0;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenOptions(const AOptions: TBoilerplateOptions);
+begin
+  inherited Options := AOptions;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenOutHeader(const aName,
+  aValue: RawUTF8);
+begin
+  FContext.OutCustomHeaders := FContext.OutCustomHeaders +
+    FormatUTF8('%: %', [aName, aValue]);
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenServeExactCaseURL(
+  const Value: Boolean);
+begin
+  RedirectServerRootUriForExactCase := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenStaticRoot(const Value: TFileName);
+begin
+  StaticRoot := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenStrictSSL(const Value: TStrictSSL);
+begin
+  StrictSSL := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenWWWRewrite(const Value: TWWWRewrite);
+begin
+  WWWRewrite := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenClearServer;
+begin
+  FContext.Init;
+  inherited Init;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenContentSecurityPolicy(
+  const Value: RawUTF8);
+begin
+  ContentSecurityPolicy := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenExpires(const Value: RawUTF8);
+begin
+  Expires := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenGZipLevel(const Value: TGZipLevel);
+begin
+  GZipLevel := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenAssets(const Name: string);
+begin
+  inherited LoadFromResource(Name);
+end;
+
+constructor TBoilerplateHTTPServerSteps.Create(const TestCase: TSynTestCase;
+  const Auth: Boolean);
+begin
+  FTestCase := TestCase;
+  FModel := TSQLModel.Create([]);
+  FServer := TSQLRestServerFullMemory.Create(FModel, Auth);
+  FContext := THttpServerRequestStub.Create(nil, 0, nil);
+  inherited Create('0', FServer, '+', useHttpSocket, nil, 0);
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenRequestResultIs(const Value: Cardinal);
+begin
+  FTestCase.Check(FContext.Result = Value,
+    Format('Request result expected=%d, actual=%d',
+      [Value, FContext.Result]));
+end;
+
+destructor TBoilerplateHTTPServerSteps.Destroy;
+begin
+  inherited;
+  FContext.Free;
+  FServer.Free;
+  FModel.Free;
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutContentEqualsFile(const FileName: TFileName);
+begin
+  FTestCase.Check(FileExists(FileName),
+    Format('File doesn''t not exists ''%s''', [FileName]));
+  FTestCase.Check(FContext.OutContent = StringFromFile(FileName),
+    Format('File content mismatch ''%s''', [FileName]));
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenInHeader(const aName, aValue: RawUTF8);
+begin
+  FContext.InHeaders := FContext.InHeaders +
+    FormatUTF8('%: %', [aName, aValue]);
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutHeaderValueIs(const aName, aValue: RawUTF8);
+var
+  NameUp: SockString;
+  Value: RawUTF8;
+begin
+  NameUp := UpperCase(aName) + ': ';
+  Value := FindIniNameValue(Pointer(FContext.OutCustomHeaders),
+    Pointer(NameUp));
+  FTestCase.Check(Value = aValue, Format(
+    '_Out ''%s'' expected=''%s'', actual=''%s''', [aName, aValue, Value]));
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutContentIsStaticFile(
+  const StaticFileName, FileName: TFileName);
+begin
+  FTestCase.Check(FileExists(FileName),
+    Format('File doesn''t not exists ''%s''', [FileName]));
+  FTestCase.Check(FileExists(StaticFileName),
+    Format('File doesn''t not exists ''%s''', [StaticFileName]));
+  FTestCase.Check(StringFromFile(StaticFileName) = StringFromFile(FileName),
+    Format('File content mismatch ''%s''', [FileName]));
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutContentIs(
+  const Value: RawByteString);
+begin
+  FTestCase.Check(FContext.OutContent = Value, Format(
+    '_OutContentIs expected=''%s'', actual=''%s''',
+      [Value, FContext.OutContent]));
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutContentIsEmpty;
+begin
+  FTestCase.Check(FContext.OutContent = '', 'HTTP Responce content is not empty');
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutContentIsStatic(
+  const FileName: TFileName);
+begin
+  FTestCase.Check(FContext.OutContentType = HTTP_RESP_STATICFILE, Format(
+    '_OutContentIsStatic expected=''%s'', actual=''%s''',
+      [HTTP_RESP_STATICFILE, FContext.OutContentType]));
+  FTestCase.Check(TFileName(FContext.OutContent) = FileName, Format(
+    '_OutContentIsStatic expected=''%s'', actual=''%s''',
+      [FileName, FContext.OutContent]));
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutContentTypeIs(
+  const Value: RawUTF8);
+begin
+  FTestCase.Check(FContext.OutContentType = Value, Format(
+    '_OutContentType expected=''%s'', actual=''%s''',
+      [Value, FContext.OutContentType]));
+end;
+
+procedure TBoilerplateHTTPServerSteps.WhenRequest(const URL: SockString;
+  const Host: SockString; const UseSSL: Boolean);
+begin
+  if URL <> '' then
+    FContext.URL := URL;
+  if Host <> '' then
+    FContext.InHeaders :=
+      FormatUTF8('%Host: %'#$D#$A, [FContext.InHeaders, Host]);
+  FContext.Method := 'GET';
+  FContext.UseSSL := UseSSL;
+  FContext.Result := inherited Request(FContext);
+end;
+
+procedure CleanUp;
+var
+  LogFiles: TFindFilesDynArray;
+  Index: Integer;
+begin
+  LogFiles := FindFiles(GetCurrentDir, 'mORMotBPTests ???????? ??????.log');
+  for Index := Low(LogFiles) to High(LogFiles) do
+    DeleteFile(LogFiles[Index].Name);
+end;
+
+end.

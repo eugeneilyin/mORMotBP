@@ -1,4 +1,23 @@
+// HTML5 Boiledplate integration with Synopse mORMot Framework
+// Licensed under The MIT License (MIT)
 unit BoilerplateAssets;
+
+(*
+  This file is a path of integration project between HTML5 Boilerplate and
+  Synopse mORMot Framework.
+
+    http://synopse.info
+    https://html5boilerplate.com
+
+  Boilerplate HTTP Server
+  (c) 2016 Yevgeny Iliyn
+
+  https://github.com/eugeneilyin/mORMotBP
+
+  Version 1.0
+  - First public release
+
+*)
 
 {$I Synopse.inc} // define HASINLINE USETYPEINFO CPU32 CPU64 OWNNORMTOUPPER
 
@@ -8,8 +27,6 @@ uses
   SysUtils, SynCommons;
 
 type
-
-{ TAsset }
 
   TFileCheck = (ccCreated, ccModified, ccSize);
   TFileChecks = set of TFileCheck;
@@ -29,8 +46,6 @@ type
   end;
   PAsset = ^TAsset;
   TAssetDynArray = array of TAsset;
-
-{ TAssets }
 
   {$ifdef UNDIRECTDYNARRAY}
   TAssets = record
@@ -309,8 +324,6 @@ begin
   FileFromString(Content, FileName);
   SetFileTime(FileName, Created, Modified);
 end;
-
-{ TAssets }
 
 procedure TAssets.Add(const Root, FileName: TFileName);
 var

@@ -47,6 +47,8 @@ type
     procedure SupportStaticRoot;
     procedure DelegateRootToIndex;
     procedure DeleteServerInternalState;
+    procedure DelegateIndexToInheritedDefault;
+    procedure Delegate404ToInherited_404;
   end;
 
   TBoilerplateTestsSuite = class(TSynTests)
@@ -58,7 +60,7 @@ procedure CleanUp;
 implementation
 
 uses
-  SysUtils, SynCommons, SynCrtSock, mORMot, mORMotHttpServer;
+  SysUtils, SynCommons, SynCrtSock, mORMotHttpServer, mORMotMVC, mORMot;
 
 type
   THttpServerRequestStub = class(THttpServerRequest)
@@ -80,10 +82,11 @@ type
 
   TBoilerplateHTTPServerSteps = class(TBoilerplateHTTPServer)
   private
+    FTestCase: TSynTestCase;
     FModel: TSQLModel;
     FServer: TSQLRestServer;
+    FApplication: TMVCApplication;
     FContext: THttpServerRequestStub;
-    FTestCase: TSynTestCase;
   public
     constructor Create(const TestCase: TSynTestCase;
       const Auth: Boolean = False);
@@ -111,6 +114,20 @@ type
     procedure ThenOutContentIs(const Value: RawByteString);
     procedure ThenOutContentIsStatic(const FileName: TFileName);
     procedure ThenRequestResultIs(const Value: Cardinal);
+  end;
+
+  IBoilerplateApplication = interface(IMVCApplication)
+    ['{79968060-F121-46B9-BA5C-C4740B4445D6}']
+    procedure _404(out Scope: Variant);
+  end;
+
+  TBoilerplateApplication = class(TMVCApplication, IBoilerplateApplication)
+  public
+    procedure Start(Server: TSQLRestServer); reintroduce;
+  published
+    procedure Error(var Msg: RawUTF8; var Scope: Variant);
+    procedure Default(var Scope: Variant);
+    procedure _404(out Scope: Variant);
   end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOrigin;
@@ -449,6 +466,31 @@ begin
   begin
     GivenClearServer;
     WhenRequest;
+    ThenRequestResultIs(HTML_NOTFOUND);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.Delegate404ToInherited_404;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenInHeader('Host', 'localhost');
+    GivenOptions([bpoDelegateBadRequestTo404]);
+    WhenRequest('123456');
+    ThenOutContentEqualsFile('Assets\404.html');
+    ThenRequestResultIs(HTML_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenInHeader('Host', 'localhost');
+    GivenOptions([bpoDelegateBadRequestTo404, bpoDelegate404ToInherited_404]);
+    WhenRequest;
+    ThenOutContentIs('404 CONTENT');
     ThenRequestResultIs(HTML_NOTFOUND);
   end;
 end;
@@ -880,6 +922,31 @@ begin
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'https://localhost/index.html');
     ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateIndexToInheritedDefault;
+var
+  Server: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
+  with Server do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenInHeader('Host', 'localhost');
+    GivenOptions([bpoDelegateRootToIndex]);
+    WhenRequest('');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenInHeader('Host', 'localhost');
+    GivenOptions([bpoDelegateRootToIndex, bpoDelegateIndexToInheritedDefault]);
+    WhenRequest;
+    ThenOutContentIs('DEFAULT CONTENT');
+    ThenRequestResultIs(HTML_SUCCESS);
   end;
 end;
 
@@ -1554,8 +1621,11 @@ begin
   FTestCase := TestCase;
   FModel := TSQLModel.Create([]);
   FServer := TSQLRestServerFullMemory.Create(FModel, Auth);
+  FApplication := TBoilerplateApplication.Create;
+  TBoilerplateApplication(FApplication).Start(FServer);
   FContext := THttpServerRequestStub.Create(nil, 0, nil);
   inherited Create('0', FServer, '+', useHttpSocket, nil, 0);
+  DomainHostRedirect('localhost', 'root');
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenRequestResultIs(const Value: Cardinal);
@@ -1569,6 +1639,7 @@ destructor TBoilerplateHTTPServerSteps.Destroy;
 begin
   inherited;
   FContext.Free;
+  FApplication.Free;
   FServer.Free;
   FModel.Free;
 end;
@@ -1663,6 +1734,44 @@ begin
   LogFiles := FindFiles(GetCurrentDir, 'mORMotBPTests ???????? ??????.log');
   for Index := Low(LogFiles) to High(LogFiles) do
     DeleteFile(LogFiles[Index].Name);
+end;
+
+procedure TBoilerplateApplication.Default(var Scope: Variant);
+begin
+  TDocVariant.NewFast(Scope);
+  Scope.Content := 'DEFAULT CONTENT';
+end;
+
+procedure TBoilerplateApplication.Error(var Msg: RawUTF8; var Scope: Variant);
+begin
+  TDocVariant.NewFast(Scope);
+  Scope.Content := 'ERROR CONTENT';
+end;
+
+procedure TBoilerplateApplication.Start(Server: TSQLRestServer);
+var
+  Params: TMVCViewsMustacheParameters;
+  Views: TMVCViewsAbtract;
+begin
+  inherited Start(Server, TypeInfo(IBoilerplateApplication));
+
+  FillChar(Params, SizeOf(Params), 0);
+  with Params do
+  begin
+    Folder := 'Views';
+    FileTimestampMonitorAfterSeconds := 0;
+    ExtensionForNotExistingTemplate := '';
+  end;
+  Views := TMVCViewsMustache.Create(FFactory.InterfaceTypeInfo, Params,
+    (fRestModel as TSQLRestServer).LogClass);
+
+  FMainRunner := TMVCRunOnRestServer.Create(Self, fRestServer, '', Views);
+end;
+
+procedure TBoilerplateApplication._404(out Scope: Variant);
+begin
+  TDocVariant.NewFast(Scope);
+  Scope.Content := '404 CONTENT';
 end;
 
 end.

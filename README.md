@@ -9,8 +9,8 @@ This project is embedding of **HTML5 Boilerplate** v.5.3.0 apache server setting
 
 ## Quick Start
 
-1. Download and unpack the lattest mORMotBP release from GitHub **Dist** directory
-2. Add the next three project **Pre-Build** events (to embed all **h5bp** assets as application resource file ):
+1. Download and unpack the latest mORMotBP release from GitHub [**Dist**](/Dist/) directory
+2. Add the next three project **Pre-Build** events (to embed all **h5bp** assets as application resource file):
   * `Tools\assetslz.exe Assets Assets.synlz`
   * `Tools\resedit.exe $(INPUTNAME).res rcdata ASSETS Assets.synlz`
   * `DEL Assets.synlz`
@@ -27,11 +27,12 @@ This project is embedding of **HTML5 Boilerplate** v.5.3.0 apache server setting
 * Server side `ETag/Last-Modified` or more user-friendly `Last-Modified/If-Modified-Since` cache strategies
 * Browsed side `Expires` or `Cache-Control: max-age` cache strategies
 * Pre-compressed **GZip** variants of all assets, up to maximum level 9 compression
-* You can embed `.map` or even better `.mab` files into application for better exception stack tracing
+* Fix well known mangled **"Accept-Encoding"** values in HTTP headers
 * Apply all HTTP headers corrections following **HTML5 Boilerplate** apache settings
-* Delegate all static assets tranferring to low-level API (e.g. `http.sys`) even GZipped content!
+* Delegate all static assets transferring to low-level API (e.g. `http.sys`) even GZipped content!
+* You can safely replace anywhere your **TSQLHttpServer** with `TBoilerplateHTTPServer = class(TSQLHttpServer)`
 
-## Test suite
+## Test Suite
 
 The `TBoilerplateHTTPServer` is fully test covered with **mORMot Test Suite** framework. Instead of classical **TDD** approach more modern **Behaviour Driven Development (BDD)** scenarios are used. Please see `Tests\mORMotBPTests.dpr` test project.
 

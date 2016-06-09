@@ -1,5 +1,5 @@
 // HTML5 Boiledplate integration with Synopse mORMot Framework
-// Licensed under GNU General Public License Version 3 from 29 June 2007
+// Licensed under The MIT License (MIT)
 unit BoilerplateHTTPServer;
 
 (*
@@ -12,11 +12,15 @@ unit BoilerplateHTTPServer;
   Boilerplate HTTP Server
   (c) 2016 Yevgeny Iliyn
 
-    https://github.com/eugeneilyin/mORMotBP
+  https://github.com/eugeneilyin/mORMotBP
 
-  Version 1.0
+  Version 1.0.0
   - First public release
 
+  Version 1.1.0
+  - minor "Cache-Control" parameters order changes
+  - added bpoDelegateIndexToInheritedDefault to delegate index.html to Default()
+  - added bpoDelegate404ToInherited_404 to delegate 404.html to _404()
 *)
 
 interface
@@ -289,7 +293,7 @@ type
     /// Allow static assets not to be cached
     bpoSetCacheNoStore,
 
-    /// Allow static assets to be cached strctly following the server rules
+    /// Allow static assets to be cached strictly following the server rules
     bpoSetCacheMustRevalidate,
 
     /// Add 'max-age' value based on content-type/expires mapping
@@ -332,7 +336,15 @@ type
     bpoDelegateRootToIndex,
 
     /// Remove 'Server-InternalState' HTTP header
-    bpoDeleteServerInternalState
+    bpoDeleteServerInternalState,
+
+    /// Instead of index.html rendering the inherited "/Default" URL will be called
+    // It allows to inject custom IMVCApplication.Default() interface method
+    bpoDelegateIndexToInheritedDefault,
+
+    /// Instead of 404.html rendering the inherited "/404" URL will be called
+    // It allows to inject custom IMVCApplication._404() interface method
+    bpoDelegate404ToInherited_404
   );
 
   TBoilerplateOptions = set of TBoilerplateOption;
@@ -601,9 +613,9 @@ type
     property Expires: RawUTF8 read FExpires write SetExpires;
 
     /// If this folder is not empty, all assets will be pre-saved as
-    // files in this folder. To minimize disk IO operations existed
-    // files Created, Modified and Size (only for not gzipped assets)
-    // attributes will be checked before saving.
+    // files into this folder. To minimize disk IO operations file attributes
+    // Created, Modified and Size (only for not gzipped assets) will be checked
+    // before saving.
     // The STATICFILE_CONTENT_TYPE will be used to inform a lower level API
     // to send the responce as file content. For files without compression
     // 'cache.plain' sub-folder is used, for files with GZip compression
@@ -702,10 +714,9 @@ const
     'text/x-cross-domain-policy,text/xml';
 
   /// See TBoilerplateHTTPServer.FileTypesForceGZipHeader
-  DEFAULT_FILE_TYPES_FORCE_GZIP_HEADER =
-    'svgz';
+  DEFAULT_FILE_TYPES_FORCE_GZIP_HEADER = 'svgz';
 
-  /// TBoilerplateHTTPServer.Expires
+  /// See TBoilerplateHTTPServer.Expires
   DEFAULT_EXPIRES =
 
     // Default
@@ -886,7 +897,7 @@ begin
     'H', 'h': Scale := SecsPerHour;
     'D', 'd': Scale := SecsPerDay;
     'W', 'w': Scale := 7 * SecsPerDay;
-    'M', 'm': Scale := 2629746;
+    'M', 'm': Scale := 2629746; // SecsPerDay * 365.2425 / 12
     'Y', 'y': Scale := 365 * SecsPerDay;
     else begin
       Result := UTF8ToInteger(Value);
@@ -1102,7 +1113,10 @@ begin
   if (bpoDelegateRootToIndex in Options) and
     ((Context.URL = '') or (Context.URL = '/')) then
     with Context do
-      Prepare('/index.html', Method, InHeaders, InContent, InContentType);
+      if bpoDelegateIndexToInheritedDefault in Options then
+        Prepare('/Default', Method, InHeaders, InContent, InContentType)
+      else
+        Prepare('/index.html', Method, InHeaders, InContent, InContentType);
 
   SplitURL(Context.URL, Path, Ext, bpoEnableCacheBusting in Options);
 
@@ -1186,16 +1200,25 @@ begin
     ((bpoDelegateBlocked in FOptions) and
       FastInArray(Ext, FFileTypesBlockedArray)) then
   begin
-    with Context do
-      Prepare('/404.html', Method, InHeaders, InContent, InContentType);
-    Ext := '.html';
-    Asset := FAssets.Find(Context.URL);
-    if Asset <> nil then
+    if bpoDelegate404ToInherited_404 in Options then
     begin
-      ContentType := ClearContentType(Asset.ContentType);
-      Context.OutContentType := Asset.ContentType;
-      Context.OutContent := Asset.Content;
+      with Context do
+        Prepare('/404', Method, InHeaders, InContent, InContentType);
+      inherited Request(Context);
+      ContentType := ClearContentType(Context.OutContentType);
       Result := HTML_NOTFOUND;
+    end else begin
+      with Context do
+        Prepare('/404.html', Method, InHeaders, InContent, InContentType);
+      Asset := FAssets.Find('/404.html');
+      if Asset <> nil then
+      begin
+        Ext := '.html';
+        Context.OutContentType := Asset.ContentType;
+        Context.OutContent := Asset.Content;
+        ContentType := ClearContentType(Asset.ContentType);
+        Result := HTML_NOTFOUND;
+      end;
     end;
   end;
 
@@ -1312,12 +1335,6 @@ begin
   begin
     CacheControl := DeleteCustomHeader(Context, 'CACHE-CONTROL:');
 
-    if bpoSetCacheMaxAge in Options then
-    begin
-      Expires := GetExpires(ContentType);
-      CacheControl := CacheControl + FormatUTF8('max-age=%', [Expires]);
-    end;
-
     if bpoSetCacheNoTransform in Options then
       CacheControl := CacheControl + ', no-transform';
 
@@ -1335,6 +1352,12 @@ begin
 
     if bpoSetCacheMustRevalidate in Options then
       CacheControl := CacheControl + ', must-revalidate';
+
+    if bpoSetCacheMaxAge in Options then
+    begin
+      Expires := GetExpires(ContentType);
+      CacheControl := CacheControl + FormatUTF8(', max-age=%', [Expires]);
+    end;
 
     if CacheControl <> '' then
     begin

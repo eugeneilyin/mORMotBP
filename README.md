@@ -38,7 +38,7 @@ The `TBoilerplateHTTPServer` is fully test covered with **mORMot Test Suite** fr
 
 ## License
 
-The code is available under the [MIT license](LICENSE.txt).
+The code is available under the [MIT license](License.txt).
 
 ## Contacts
 

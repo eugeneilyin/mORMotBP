@@ -10,3 +10,6 @@ Version 1.2
   - fix "Accept-Encoding" parsing when gzip in the end of encodings list
   - make Pre-Build events notice more visible in tests and demo
   - minor code refactoring
+
+Version 1.3
+  - Fix bug in assetslz tool when asset name started with '.'

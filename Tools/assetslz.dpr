@@ -72,7 +72,8 @@ begin
   if FindFirst(DirName + '*', faAnyFile, F) <> 0 then Exit;
   try
     repeat
-      if F.Name[1] = '.' then Continue;
+      if F.Name = '.' then Continue;
+      if F.Name = '..' then Continue;
       if (F.Attr and faDirectory) > 0 then
         FindFiles(DirName + F.Name + PathDelim, Files)
       else begin

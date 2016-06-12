@@ -3,10 +3,7 @@ unit BoilerplateTests;
 interface
 
 uses
-  SynZip,
-  SynTests,
-  BoilerplateAssets,
-  BoilerplateHTTPServer;
+  SynTests;
 
 type
   TBoilerplateHTTPServerShould = class(TSynTestCase)
@@ -51,8 +48,8 @@ type
     procedure Delegate404ToInherited_404;
   end;
 
-  TBoilerplateTestsSuite = class(TSynTests)
-    procedure Register;
+  TBoilerplateFeatures = class(TSynTests)
+    procedure Scenarios;
   end;
 
 procedure CleanUp;
@@ -60,9 +57,17 @@ procedure CleanUp;
 implementation
 
 uses
-  SysUtils, SynCommons, SynCrtSock, mORMotHttpServer, mORMotMVC, mORMot;
+  SysUtils,
+  SynCommons,
+  SynCrtSock,
+  mORMot,
+  mORMotMVC,
+  mORMotHttpServer,
+  BoilerplateAssets,
+  BoilerplateHTTPServer;
 
 type
+
   THttpServerRequestStub = class(THttpServerRequest)
   private
     FResult: Cardinal;
@@ -132,10 +137,10 @@ type
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOrigin;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     WhenRequest;
@@ -156,10 +161,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForFonts;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -187,10 +192,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForImages;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -218,10 +223,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginTiming;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -241,10 +246,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportContentSecurityPolicy;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -277,12 +282,12 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportGZipByMIMEType;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
   Data: RawByteString;
   Level: TGZipLevel;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -304,6 +309,14 @@ begin
     GivenAssets;
     GivenOptions([bpoForceMIMEType, bpoEnableGZipByMIMETypes]);
     GivenInHeader('Accept-Encoding', 'gzip');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceMIMEType, bpoEnableGZipByMIMETypes]);
+    GivenInHeader('Accept-Encoding', 'deflate, sdch, br, gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
     ThenRequestResultIs(HTML_SUCCESS);
@@ -334,11 +347,11 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportStaticRoot;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
   StaticData, RequiredData: RawByteString;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -370,10 +383,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportStrictSSL;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -404,10 +417,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportWWWRewrite;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -459,10 +472,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.CallInherited;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     WhenRequest;
@@ -472,10 +485,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.Delegate404ToInherited_404;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -497,10 +510,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateBadRequestTo404;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([]);
@@ -518,10 +531,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateBlocked;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([]);
@@ -541,10 +554,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateForbiddenTo404;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self, True));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, True));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([]);
@@ -562,10 +575,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateNotFoundTo404;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([]);
@@ -583,10 +596,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateRootToIndex;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -620,10 +633,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DeleteServerInternalState;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([]);
@@ -641,10 +654,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DeleteXPoweredBy;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -666,10 +679,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheBusting;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -695,10 +708,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheByETag;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -738,7 +751,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheByLastModified;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
   Assets: TAssets;
   LastModified: RawUTF8;
 begin
@@ -746,8 +759,8 @@ begin
   Assets.Add('Assets', 'Assets\index.html');
   LastModified := DateTimeToHTTPDate(Assets.Assets[0].Modified);
 
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -787,10 +800,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableXSSFilter;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -824,10 +837,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.FixMangledAcceptEncoding;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -880,10 +893,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceGZipHeader;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -904,10 +917,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceHTTPS;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -927,10 +940,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateIndexToInheritedDefault;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -952,10 +965,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceMIMEType;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([]);
@@ -972,10 +985,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.LoadAndReturnAssets;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -988,10 +1001,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.PreventMIMESniffing;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1013,10 +1026,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceTextUTF8Charset;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([bpoForceMIMEType]);
@@ -1042,10 +1055,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceUTF8Charset;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenOptions([bpoForceMIMEType]);
@@ -1061,10 +1074,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ServeExactCaseURL;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1092,10 +1105,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCacheMaxAge;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1221,10 +1234,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCacheNoTransform;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1244,10 +1257,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCachePublic;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1310,11 +1323,11 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetExpires;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
   LExpires: RawUTF8;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1445,10 +1458,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetP3P;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1469,10 +1482,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetXFrameOptions;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1506,10 +1519,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetXUACompatible;
 var
-  Server: TBoilerplateHTTPServerSteps;
+  Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Server, TBoilerplateHTTPServerSteps.Create(Self));
-  with Server do
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
   begin
     GivenClearServer;
     GivenAssets;
@@ -1539,20 +1552,6 @@ begin
     ThenOutHeaderValueIs('X-UA-Compatible', '');
     ThenRequestResultIs(HTML_SUCCESS);
   end;
-end;
-
-procedure TBoilerplateTestsSuite.Register;
-begin
-  AddCase(TBoilerplateHTTPServerShould);
-end;
-
-procedure THttpServerRequestStub.Init;
-begin
-  Prepare('', '', '', '', '');
-  FOutCustomHeaders := '';
-  FOutContentType := '';
-  FOutContent := '';
-  FResult := 0;
 end;
 
 procedure TBoilerplateHTTPServerSteps.GivenOptions(const AOptions: TBoilerplateOptions);
@@ -1726,14 +1725,13 @@ begin
   FContext.Result := inherited Request(FContext);
 end;
 
-procedure CleanUp;
-var
-  LogFiles: TFindFilesDynArray;
-  Index: Integer;
+procedure THttpServerRequestStub.Init;
 begin
-  LogFiles := FindFiles(GetCurrentDir, 'mORMotBPTests ???????? ??????.log');
-  for Index := Low(LogFiles) to High(LogFiles) do
-    DeleteFile(LogFiles[Index].Name);
+  Prepare('', '', '', '', '');
+  FOutCustomHeaders := '';
+  FOutContentType := '';
+  FOutContent := '';
+  FResult := 0;
 end;
 
 procedure TBoilerplateApplication.Default(var Scope: Variant);
@@ -1772,6 +1770,21 @@ procedure TBoilerplateApplication._404(out Scope: Variant);
 begin
   TDocVariant.NewFast(Scope);
   Scope.Content := '404 CONTENT';
+end;
+
+procedure TBoilerplateFeatures.Scenarios;
+begin
+  AddCase(TBoilerplateHTTPServerShould);
+end;
+
+procedure CleanUp;
+var
+  LogFiles: TFindFilesDynArray;
+  Index: Integer;
+begin
+  LogFiles := FindFiles(GetCurrentDir, 'mORMotBPTests ???????? ??????.log');
+  for Index := Low(LogFiles) to High(LogFiles) do
+    DeleteFile(LogFiles[Index].Name);
 end;
 
 end.

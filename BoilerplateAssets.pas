@@ -1,4 +1,4 @@
-// HTML5 Boiledplate integration with Synopse mORMot Framework
+/// HTML5 Boilerplate integration with Synopse mORMot Framework
 // Licensed under The MIT License (MIT)
 unit BoilerplateAssets;
 

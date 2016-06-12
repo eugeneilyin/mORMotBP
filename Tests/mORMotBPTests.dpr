@@ -1,8 +1,17 @@
-/// To embed assets to exe add the next three PRE-BUILD events to your Project
-//
-// ..\Tools\assetslz.exe Assets Assets.synlz
-// ..\Tools\resedit.exe $(INPUTNAME).res rcdata ASSETS Assets.synlz
-// DEL Assets.synlz
+{===============================================================================
+
+WARNING!
+Before running the tests embed required Boilerplate Assets into application
+
+To do this add the next three events to "Pre-Build Events" project options:
+
+Project / Options / BuildEvents / Pre-Build Events
+
+..\Tools\assetslz.exe Assets Assets.synlz
+..\Tools\resedit.exe $(INPUTNAME).res rcdata ASSETS Assets.synlz
+DEL Assets.synlz
+
+===============================================================================}
 
 program mORMotBPTests;
 
@@ -12,15 +21,13 @@ program mORMotBPTests;
 
 {$I SynDprUses.inc} // Get rid of W1029 annoing warnings
 
-{$UNDEF COMPRESSSYNLZ}
-
 uses
   BoilerplateTests,
   BoilerplateAssets in '..\BoilerplateAssets.pas',
   BoilerplateHTTPServer in '..\BoilerplateHTTPServer.pas';
 
 begin
-  with TBoilerplateTestsSuite.Create do
+  with TBoilerplateFeatures.Create do
   try
     RunAsConsole;
     CleanUp;

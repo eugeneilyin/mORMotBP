@@ -1,8 +1,17 @@
-/// To embed assets to exe add the next three PRE-BUILD events to your Project
-//
-// ..\Tools\assetslz.exe ..\Assets Assets.synlz
-// ..\Tools\resedit.exe $(INPUTNAME).res rcdata ASSETS Assets.synlz
-// DEL Assets.synlz
+{===============================================================================
+
+WARNING!
+Before running the demo embed required Boilerplate Assets into application
+
+To do this add the next three events to "Pre-Build Events" project options:
+
+Project / Options / BuildEvents / Pre-Build Events
+
+..\Tools\assetslz.exe ..\Assets Assets.synlz
+..\Tools\resedit.exe $(INPUTNAME).res rcdata ASSETS Assets.synlz
+DEL Assets.synlz
+
+===============================================================================}
 
 program mORMotBPDemo;
 
@@ -32,7 +41,7 @@ begin
 
   HTTPServer.LoadFromResource('Assets');
 
-/// Uncomment next two lines delegate static assets transfer to low-level API
+/// Use the next two lines to delegate static assets transfer with low-level API
 //  HTTPServer.Options := HTTPServer.Options + [bpoEnableGZipByMIMETypes];
 //  HTTPServer.StaticRoot := 'Temp';
 

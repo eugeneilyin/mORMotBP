@@ -1,4 +1,4 @@
-// HTML5 Boiledplate integration with Synopse mORMot Framework
+/// HTML5 Boilerplate integration with Synopse mORMot Framework
 // Licensed under The MIT License (MIT)
 unit BoilerplateHTTPServer;
 
@@ -14,13 +14,18 @@ unit BoilerplateHTTPServer;
 
   https://github.com/eugeneilyin/mORMotBP
 
-  Version 1.0.0
+  Version 1.0
   - First public release
 
-  Version 1.1.0
+  Version 1.1
   - minor "Cache-Control" parameters order changes
   - added bpoDelegateIndexToInheritedDefault to delegate index.html to Default()
   - added bpoDelegate404ToInherited_404 to delegate 404.html to _404()
+
+  Version 1.2
+  - fix "Accept-Encoding" parsing when gzip in the end of encoding list
+  - make Pre-Build events notice more visible in tests and demo
+  - minor code refactoring
 *)
 
 interface
@@ -469,7 +474,7 @@ type
       {$ifdef HASINLINE}inline;{$endif}
 
     /// Removes charset from content type
-    function ClearContentType(const ContentType: RawUTF8): RawUTF8;
+    function ContentTypeWithoutCharset(const ContentType: RawUTF8): RawUTF8;
       {$ifdef HASINLINE}inline;{$endif}
 
     /// Compress HTTP responce content
@@ -484,6 +489,10 @@ type
     procedure SaveStaticAsset(const Context: THttpServerRequest;
       const Asset: PAsset; const GZippedContent: RawByteString); virtual;
         {$ifdef HASINLINE}inline;{$endif}
+
+    /// Find host for redirection rules. Returns '' if host not found
+    function FindHost(const Context: THttpServerRequest): SockString; virtual;
+      {$ifdef HASINLINE}inline;{$endif}
 
     procedure SetFileTypesImage(const Value: RawUTF8);
     procedure SetFileTypesFont(const Value: RawUTF8);
@@ -614,14 +623,14 @@ type
 
     /// If this folder is not empty, all assets will be pre-saved as
     // files into this folder. To minimize disk IO operations file attributes
-    // Created, Modified and Size (only for not gzipped assets) will be checked
-    // before saving.
-    // The STATICFILE_CONTENT_TYPE will be used to inform a lower level API
+    // Created, Modified and Size (size only for not gzipped assets) will
+    // be checked before saving.
+    // The STATICFILE_CONTENT_TYPE will be used to inform the lower level API
     // to send the responce as file content. For files without compression
     // 'cache.plain' sub-folder is used, for files with GZip compression
-    // 'cache.gz' sub-folder is used with .gz file suffix. All files will
-    // be stored only onces or if their Created, Modified or Size attributes
-    // differ from mem-cached variant.
+    // 'cache.gz' sub-folder is used with .gz suffix added to each file. All
+    // files will be stored only once or if their Created, Modified or Size
+    // attributes differ from mem-cached variant.
     property StaticRoot: TFileName read FStaticRoot write FStaticRoot;
   end;
 
@@ -915,6 +924,12 @@ begin
     Pointer(Exts), High(Exts), Pointer(Ext)) = -1;
 end;
 
+function TBoilerplateHTTPServer.FindHost(
+  const Context: THttpServerRequest): SockString;
+begin
+  Result := TrimLeft(FindIniNameValue(Pointer(Context.InHeaders), 'HOST:'));
+end;
+
 function TBoilerplateHTTPServer.GetExpires(const ContentType: RawUTF8): PtrInt;
 begin
   Result := FExpiresValues.Find(ContentType);
@@ -924,7 +939,7 @@ begin
     Result := FExpiresDefault;
 end;
 
-function TBoilerplateHTTPServer.ClearContentType(
+function TBoilerplateHTTPServer.ContentTypeWithoutCharset(
   const ContentType: RawUTF8): RawUTF8;
 var
   Index: Integer;
@@ -1073,7 +1088,7 @@ var
 begin
   AcceptEncoding := LowerCase(Trim(FindIniNameValue(
     Pointer(Context.InHeaders),'ACCEPT-ENCODING:')));
-  Result := (AcceptEncoding = 'gzip') or (PosEx('gzip,', AcceptEncoding) > 0);
+  Result := PosEx('gzip', AcceptEncoding) > 0;
 
   if (not FixMangled) or Result then Exit;
 
@@ -1107,8 +1122,8 @@ var
   Path, PathLowerCased, Ext, Host: SockString;
   OriginExists, CORSEnabled: Boolean;
   ContentType, ForcedContentType, CacheControl: RawUTF8;
-  Expires: PtrInt;
   GZippedContent: RawByteString;
+  Expires: PtrInt;
 begin
   if (bpoDelegateRootToIndex in Options) and
     ((Context.URL = '') or (Context.URL = '/')) then
@@ -1122,13 +1137,12 @@ begin
 
   if FWWWRewrite = wwwSuppress then
   begin
-    Host := Trim(FindIniNameValue(Pointer(Context.InHeaders),'HOST:'));
-    if IdemPChar(PAnsiChar(Host), 'WWW.') then
+    Host := FindHost(Context);
+    if (Host <> '') and IdemPChar(PAnsiChar(Host), 'WWW.') then
     begin
       Delete(Host, 1, 4);
-      AddCustomHeader(Context, 'Location',
-        AnsiString(Format('http%s://%s%s', [HTTPS[Context.UseSSL],
-          Host, Path])));
+      AddCustomHeader(Context, 'Location', SockString(
+        FormatUTF8('http%://%%', [HTTPS[Context.UseSSL], Host, Path])));
       Result := HTML_MOVEDPERMANENTLY;
       Exit;
     end;
@@ -1136,13 +1150,12 @@ begin
 
   if FWWWRewrite = wwwForce then
   begin
-    Host := Trim(FindIniNameValue(Pointer(Context.InHeaders),'HOST:'));
-    if not IdemPChar(PAnsiChar(Host), 'WWW.') then
+    Host := FindHost(Context);
+    if (Host <> '') and not IdemPChar(PAnsiChar(Host), 'WWW.') then
     begin
       Host := 'www.' + Host;
-      AddCustomHeader(Context, 'Location',
-        AnsiString(Format('http%s://%s%s', [HTTPS[Context.UseSSL],
-          Host, Path])));
+      AddCustomHeader(Context, 'Location', SockString(
+        FormatUTF8('http%://%%', [HTTPS[Context.UseSSL], Host, Path])));
       Result := HTML_MOVEDPERMANENTLY;
       Exit;
     end;
@@ -1150,11 +1163,14 @@ begin
 
   if (bpoForceHTTPS in Options) and not Context.UseSSL then
   begin
-    AddCustomHeader(Context, 'Location',
-      AnsiString(Format('https://%s%s',
-        [Trim(FindIniNameValue(Pointer(Context.InHeaders),'HOST:')), Path])));
-    Result := HTML_MOVEDPERMANENTLY;
-    Exit;
+    Host := FindHost(Context);
+    if Host <> '' then
+    begin
+      AddCustomHeader(Context, 'Location', SockString(
+        FormatUTF8('https://%%', [Host, Path])));
+      Result := HTML_MOVEDPERMANENTLY;
+      Exit;
+    end;
   end;
 
   Asset := FAssets.Find(Path);
@@ -1163,16 +1179,18 @@ begin
     PathLowerCased := LowerCase(Path);
     if PathLowerCased <> Path then
     begin
-      Path := PathLowerCased;
-      Asset := FAssets.Find(Path);
+      Asset := FAssets.Find(PathLowerCased);
       if (Asset <> nil) and RedirectServerRootUriForExactCase then
       begin
-        AddCustomHeader(Context, 'Location',
-          AnsiString(Format('http%s://%s%s', [HTTPS[Context.UseSSL],
-            Trim(FindIniNameValue(Pointer(Context.InHeaders),'HOST:')),
-              PathLowerCased])));
-        Result := HTML_MOVEDPERMANENTLY;
-        Exit;
+        Host := FindHost(Context);
+        if Host <> '' then
+        begin
+          AddCustomHeader(Context, 'Location', SockString(
+            FormatUTF8('http%://%%',
+              [HTTPS[Context.UseSSL], Host, PathLowerCased])));
+          Result := HTML_MOVEDPERMANENTLY;
+          Exit;
+        end;
       end;
     end;
   end;
@@ -1185,13 +1203,13 @@ begin
       Result := HTML_NOTMODIFIED;
       Exit;
     end;
-    ContentType := ClearContentType(Asset.ContentType);
+    ContentType := ContentTypeWithoutCharset(Asset.ContentType);
     Context.OutContentType := Asset.ContentType;
     Context.OutContent := Asset.Content;
     Result := HTML_SUCCESS;
   end else begin
     Result := inherited Request(Context);
-    ContentType := ClearContentType(Context.OutContentType);
+    ContentType := ContentTypeWithoutCharset(Context.OutContentType);
   end;
 
   if ((Result = HTML_BADREQUEST) and (bpoDelegateBadRequestTo404 in FOptions)) or
@@ -1205,7 +1223,7 @@ begin
       with Context do
         Prepare('/404', Method, InHeaders, InContent, InContentType);
       inherited Request(Context);
-      ContentType := ClearContentType(Context.OutContentType);
+      ContentType := ContentTypeWithoutCharset(Context.OutContentType);
       Result := HTML_NOTFOUND;
     end else begin
       with Context do
@@ -1216,7 +1234,7 @@ begin
         Ext := '.html';
         Context.OutContentType := Asset.ContentType;
         Context.OutContent := Asset.Content;
-        ContentType := ClearContentType(Asset.ContentType);
+        ContentType := ContentTypeWithoutCharset(Asset.ContentType);
         Result := HTML_NOTFOUND;
       end;
     end;
@@ -1227,7 +1245,7 @@ begin
     ForcedContentType := FForceMIMETypesValues.Value(Ext, #0);
     if ForcedContentType <> #0 then
     begin
-      ContentType := ClearContentType(ForcedContentType);
+      ContentType := ContentTypeWithoutCharset(ForcedContentType);
       Context.OutContentType := ForcedContentType;
     end;
   end;

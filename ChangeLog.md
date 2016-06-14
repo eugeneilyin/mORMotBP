@@ -12,4 +12,7 @@ Version 1.2
   - minor code refactoring
 
 Version 1.3
-  - Fix bug in assetslz tool when asset name started with '.'
+  - fix bug in assetslz tool when asset name started with '.'
+
+Version 1.4
+  - make TAsset to be packed record for better x86/x64 platforms compatibility

@@ -31,7 +31,7 @@ type
   TFileCheck = (ccCreated, ccModified, ccSize);
   TFileChecks = set of TFileCheck;
 
-  TAsset = record
+  TAsset = packed record
     Path: RawUTF8;
     Created: TDateTime;
     Modified: TDateTime;

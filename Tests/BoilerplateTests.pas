@@ -709,10 +709,14 @@ end;
 procedure TBoilerplateHTTPServerShould.EnableCacheByETag;
 var
   Steps: TBoilerplateHTTPServerSteps;
+  Hash: RawUTF8;
 begin
   TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
+    Hash := FormatUTF8('"%"',
+      [crc32cUTF8ToHex(StringFromFile('Assets\index.html'))]);
+
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
@@ -724,7 +728,7 @@ begin
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
-    GivenInHeader('If-None-Match', '"6FECA093"');
+    GivenInHeader('If-None-Match', Hash);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('ETag', '');
     ThenOutContentEqualsFile('Assets\index.html');
@@ -734,14 +738,14 @@ begin
     GivenAssets;
     GivenOptions([bpoEnableCacheByETag]);
     WhenRequest('/index.html');
-    ThenOutHeaderValueIs('ETag', '"6FECA093"');
+    ThenOutHeaderValueIs('ETag', Hash);
     ThenOutContentEqualsFile('Assets\index.html');
     ThenRequestResultIs(HTML_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoEnableCacheByETag]);
-    GivenInHeader('If-None-Match', '"6FECA093"');
+    GivenInHeader('If-None-Match', Hash);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('ETag', '');
     ThenOutContentIsEmpty;

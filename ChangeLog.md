@@ -16,3 +16,5 @@ Version 1.3
 
 Version 1.4
   - make TAsset to be packed record for better x86/x64 platforms compatibility
+
+ - fix EnableCacheByETag test scenarios

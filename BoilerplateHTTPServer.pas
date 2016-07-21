@@ -349,7 +349,11 @@ type
 
     /// Instead of 404.html rendering the inherited "/404" URL will be called
     // It allows to inject custom IMVCApplication._404() interface method
-    bpoDelegate404ToInherited_404
+    bpoDelegate404ToInherited_404,
+
+    /// Add 'Vary: Accept-Encoding' header for resource types specified in
+    // TBoilerplateHTTPServer.GZippedMIMETypes
+    bpoVaryAcceptEncoding
   );
 
   TBoilerplateOptions = set of TBoilerplateOption;
@@ -427,6 +431,7 @@ type
     FExpiresValues: TSynNameValue;
     FGZippedAssets: TSynNameValue;
     FStaticRoot: TFileName;
+    FCustomOptions: TSynNameValue;
 
     /// Init assets and set default values for properties
     procedure Init; virtual;
@@ -494,6 +499,9 @@ type
     function FindHost(const Context: THttpServerRequest): SockString; virtual;
       {$ifdef HASINLINE}inline;{$endif}
 
+    function FindCustomOptions(const URL: RawUTF8;
+      const Default: TBoilerplateOptions): TBoilerplateOptions;
+
     procedure SetFileTypesImage(const Value: RawUTF8);
     procedure SetFileTypesFont(const Value: RawUTF8);
     procedure SetFileTypesAsset(const Value: RawUTF8);
@@ -538,6 +546,15 @@ type
   public
     /// Load assets from RT_RCDATA synzl-compressed resource
     procedure LoadFromResource(const ResName: string);
+
+    /// Register custom Cache-Control options for specific URL's
+    // For example if you want cache most *.html pages with standart
+    // Cache-Control options, but change this rule for default page or login page
+    procedure RegisterCustomOptions(const URL: RawUTF8;
+      CustomCacheOptions: TBoilerplateOptions);
+
+    /// Removes custom options usage for specific URL
+    procedure UnregisterCustomOptions(const URL: RawUTF8);
 
     /// See TBoilerplateOptions
     property Options: TBoilerplateOptions read FOptions write FOptions;
@@ -658,7 +675,8 @@ const
     bpoEnableCacheBusting,
     bpoSetExpires,
     bpoDelegateRootToIndex,
-    bpoDeleteServerInternalState];
+    bpoDeleteServerInternalState,
+    bpoVaryAcceptEncoding];
 
   /// See TBoilerplateHTTPServer.ContentSecurityPolicy
   DEFAULT_CONTENT_SECURITY_POLICY: SockString = '';
@@ -924,6 +942,24 @@ begin
     Pointer(Exts), High(Exts), Pointer(Ext)) = -1;
 end;
 
+function TBoilerplateHTTPServer.FindCustomOptions(const URL: RawUTF8;
+  const Default: TBoilerplateOptions): TBoilerplateOptions;
+var
+  Index: Integer;
+
+  function StrToOptions(const Str: RawUTF8): TBoilerplateOptions;
+  begin
+    MoveFast(Str[1], Result, SizeOf(Result));
+  end;
+
+begin
+  Index := FCustomOptions.Find(URL);
+  if Index >= 0 then
+    Result := StrToOptions(FCustomOptions.List[Index].Value)
+  else
+    Result := Default;
+end;
+
 function TBoilerplateHTTPServer.FindHost(
   const Context: THttpServerRequest): SockString;
 begin
@@ -1040,6 +1076,7 @@ begin
   SetGZippedMIMETypes(DEFAULT_GZIPPED_MIME_TYPES);
   SetFileTypesForceGZipHeader(DEFAULT_FILE_TYPES_FORCE_GZIP_HEADER);
   SetExpires(DEFAULT_EXPIRES);
+  FCustomOptions.Init(False);
 end;
 
 function TBoilerplateHTTPServer.IsContentModified(Context: THttpServerRequest;
@@ -1114,6 +1151,19 @@ begin
   CreateGZippedAssets;
 end;
 
+procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URL: RawUTF8;
+  CustomCacheOptions: TBoilerplateOptions);
+
+  function GetOptionsValue: RawUTF8;
+  begin
+    SetLength(Result, SizeOf(CustomCacheOptions));
+    MoveFast(CustomCacheOptions, Result[1], SizeOf(CustomCacheOptions));
+  end;
+
+begin
+  FCustomOptions.Add(URL, GetOptionsValue);
+end;
+
 function TBoilerplateHTTPServer.Request(Context: THttpServerRequest): Cardinal;
 const
   HTTPS: array[Boolean] of SockString = ('', 's');
@@ -1124,16 +1174,20 @@ var
   ContentType, ForcedContentType, CacheControl: RawUTF8;
   GZippedContent: RawByteString;
   Expires: PtrInt;
+  LOptions: TBoilerplateOptions;
+  Vary: RawUTF8;
 begin
-  if (bpoDelegateRootToIndex in Options) and
+  if (bpoDelegateRootToIndex in FOptions) and
     ((Context.URL = '') or (Context.URL = '/')) then
     with Context do
-      if bpoDelegateIndexToInheritedDefault in Options then
+      if bpoDelegateIndexToInheritedDefault in FOptions then
         Prepare('/Default', Method, InHeaders, InContent, InContentType)
       else
         Prepare('/index.html', Method, InHeaders, InContent, InContentType);
 
-  SplitURL(Context.URL, Path, Ext, bpoEnableCacheBusting in Options);
+  SplitURL(Context.URL, Path, Ext, bpoEnableCacheBusting in FOptions);
+
+  LOptions := FindCustomOptions(Path, FOptions);
 
   if FWWWRewrite = wwwSuppress then
   begin
@@ -1161,7 +1215,7 @@ begin
     end;
   end;
 
-  if (bpoForceHTTPS in Options) and not Context.UseSSL then
+  if (bpoForceHTTPS in LOptions) and not Context.UseSSL then
   begin
     Host := FindHost(Context);
     if Host <> '' then
@@ -1197,8 +1251,8 @@ begin
 
   if Asset <> nil then
   begin
-    if not IsContentModified(Context, Asset, bpoEnableCacheByETag in Options,
-      bpoEnableCacheByLastModified in Options) then
+    if not IsContentModified(Context, Asset, bpoEnableCacheByETag in LOptions,
+      bpoEnableCacheByLastModified in LOptions) then
     begin
       Result := HTML_NOTMODIFIED;
       Exit;
@@ -1212,13 +1266,13 @@ begin
     ContentType := ContentTypeWithoutCharset(Context.OutContentType);
   end;
 
-  if ((Result = HTML_BADREQUEST) and (bpoDelegateBadRequestTo404 in FOptions)) or
-    ((Result = HTML_FORBIDDEN) and (bpoDelegateForbiddenTo404 in FOptions)) or
-    ((Result = HTML_NOTFOUND) and (bpoDelegateNotFoundTo404 in FOptions)) or
-    ((bpoDelegateBlocked in FOptions) and
+  if ((Result = HTML_BADREQUEST) and (bpoDelegateBadRequestTo404 in LOptions)) or
+    ((Result = HTML_FORBIDDEN) and (bpoDelegateForbiddenTo404 in LOptions)) or
+    ((Result = HTML_NOTFOUND) and (bpoDelegateNotFoundTo404 in LOptions)) or
+    ((bpoDelegateBlocked in LOptions) and
       FastInArray(Ext, FFileTypesBlockedArray)) then
   begin
-    if bpoDelegate404ToInherited_404 in Options then
+    if bpoDelegate404ToInherited_404 in LOptions then
     begin
       with Context do
         Prepare('/404', Method, InHeaders, InContent, InContentType);
@@ -1240,7 +1294,7 @@ begin
     end;
   end;
 
-  if bpoForceMIMEType in FOptions then
+  if bpoForceMIMEType in LOptions then
   begin
     ForcedContentType := FForceMIMETypesValues.Value(Ext, #0);
     if ForcedContentType <> #0 then
@@ -1252,12 +1306,12 @@ begin
 
   GZippedContent := #0;
 
-  if (bpoForceGZipHeader in Options) and
+  if (bpoForceGZipHeader in LOptions) and
     FastInArray(Ext, FFileTypesForceGZipHeaderArray) then
       AddCustomHeader(Context, 'Content-Encoding', 'gzip');
 
-  if (bpoEnableGZipByMIMETypes in Options) and
-    IsGZipAccepted(Context, bpoFixMangledAcceptEncoding in FOptions) and
+  if (bpoEnableGZipByMIMETypes in LOptions) and
+    IsGZipAccepted(Context, bpoFixMangledAcceptEncoding in LOptions) and
       FastInArray(ContentType, FGZippedMIMETypesArray) then
       begin
         GZippedContent := FGZippedAssets.Value(Path, #0);
@@ -1268,7 +1322,7 @@ begin
         end
       end;
 
-  if bpoForceTextUTF8Charset in FOptions then
+  if bpoForceTextUTF8Charset in LOptions then
   begin
     if Context.OutContentType = 'text/html' then
       Context.OutContentType := 'text/html; charset=UTF-8';
@@ -1276,7 +1330,7 @@ begin
       Context.OutContentType := 'text/plain; charset=UTF-8';
   end;
 
-  if (bpoForceUTF8Charset in FOptions) and
+  if (bpoForceUTF8Charset in LOptions) and
     FastInArray(Ext, FFileTypesRequiredCharSetValues) then
   begin
     if PosEx('charset', LowerCase(Context.OutContentType)) = 0 then
@@ -1286,7 +1340,7 @@ begin
   CORSEnabled := False;
   OriginExists := ExistsIniName(Pointer(Context.InHeaders), 'ORIGIN:');
 
-  if bpoAllowCrossOrigin in FOptions then
+  if bpoAllowCrossOrigin in LOptions then
   begin
     if OriginExists then
     begin
@@ -1295,7 +1349,7 @@ begin
     end;
   end;
 
-  if not CORSEnabled and (bpoAllowCrossOriginImages in FOptions) then
+  if not CORSEnabled and (bpoAllowCrossOriginImages in LOptions) then
   begin
     if OriginExists and FastInArray(Ext, FFileTypesImageArray) then
     begin
@@ -1304,22 +1358,22 @@ begin
     end;
   end;
 
-  if not CORSEnabled and (bpoAllowCrossOriginFonts in FOptions) then
+  if not CORSEnabled and (bpoAllowCrossOriginFonts in LOptions) then
     if OriginExists and FastInArray(Ext, FFileTypesFontArray) then
       AddCustomHeader(Context, 'Access-Control-Allow-Origin', '*');
 
-  if bpoAllowCrossOriginTiming in FOptions then
+  if bpoAllowCrossOriginTiming in LOptions then
     AddCustomHeader(Context, 'Timing-Allow-Origin', '*');
 
-  if (bpoSetXUACompatible in FOptions) and
+  if (bpoSetXUACompatible in LOptions) and
     not FastInArray(Ext, FFileTypesAssetArray) then
       AddCustomHeader(Context, 'X-UA-Compatible', 'IE=edge');
 
-  if bpoSetP3P in FOptions then
+  if bpoSetP3P in LOptions then
     AddCustomHeader(Context, 'P3P', 'policyref="/w3c/p3p.xml", CP="IDC ' +
       'DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"');
 
-  if (bpoSetXFrameOptions in Options) and
+  if (bpoSetXFrameOptions in LOptions) and
     not FastInArray(Ext, FFileTypesAssetArray) then
       AddCustomHeader(Context, 'X-Frame-Options', 'DENY');
 
@@ -1335,43 +1389,43 @@ begin
     AddCustomHeader(Context, 'Strict-Transport-Security',
       'max-age=16070400; includeSubDomains');
 
-  if bpoPreventMIMESniffing in Options then
+  if bpoPreventMIMESniffing in LOptions then
     AddCustomHeader(Context, 'X-Content-Type-Options', 'nosniff');
 
-  if (bpoEnableXSSFilter in Options) and
+  if (bpoEnableXSSFilter in LOptions) and
     not FastInArray(Ext, FFileTypesAssetArray) then
       AddCustomHeader(Context, 'X-XSS-Protection', '1; mode=block');
 
-  if bpoDeleteXPoweredBy in Options then
+  if bpoDeleteXPoweredBy in LOptions then
     DeleteCustomHeader(Context, 'X-POWERED-BY:');
 
   Expires := -1;
 
   if [bpoSetCacheNoTransform, bpoSetCachePublic, bpoSetCachePrivate,
     bpoSetCacheNoCache, bpoSetCacheNoStore, bpoSetCacheMustRevalidate,
-    bpoSetCacheMaxAge] * Options <> [] then
+    bpoSetCacheMaxAge] * LOptions <> [] then
   begin
     CacheControl := DeleteCustomHeader(Context, 'CACHE-CONTROL:');
 
-    if bpoSetCacheNoTransform in Options then
+    if bpoSetCacheNoTransform in LOptions then
       CacheControl := CacheControl + ', no-transform';
 
-    if bpoSetCachePublic in Options then
+    if bpoSetCachePublic in LOptions then
       CacheControl := CacheControl + ', public';
 
-    if bpoSetCachePrivate in Options then
+    if bpoSetCachePrivate in LOptions then
       CacheControl := CacheControl + ', private';
 
-    if bpoSetCacheNoCache in Options then
+    if bpoSetCacheNoCache in LOptions then
       CacheControl := CacheControl + ', no-cache';
 
-    if bpoSetCacheNoStore in Options then
+    if bpoSetCacheNoStore in LOptions then
       CacheControl := CacheControl + ', no-store';
 
-    if bpoSetCacheMustRevalidate in Options then
+    if bpoSetCacheMustRevalidate in LOptions then
       CacheControl := CacheControl + ', must-revalidate';
 
-    if bpoSetCacheMaxAge in Options then
+    if bpoSetCacheMaxAge in LOptions then
     begin
       Expires := GetExpires(ContentType);
       CacheControl := CacheControl + FormatUTF8(', max-age=%', [Expires]);
@@ -1385,7 +1439,7 @@ begin
     end;
   end;
 
-  if bpoSetExpires in Options then
+  if bpoSetExpires in LOptions then
   begin
     if Expires = -1 then
       Expires := GetExpires(ContentType);
@@ -1393,11 +1447,24 @@ begin
       DateTimeToHTTPDate(NowUTC + Expires / SecsPerDay));
   end;
 
-  if bpoDeleteServerInternalState in Options then
+  if bpoDeleteServerInternalState in LOptions then
     DeleteCustomHeader(Context, 'SERVER-INTERNALSTATE:');
 
   if FStaticRoot <> '' then
     SaveStaticAsset(Context, Asset, GZippedContent);
+
+  if bpoVaryAcceptEncoding in LOptions then
+  begin
+    if FastInArray(ContentType, FGZippedMIMETypesArray) then
+    begin
+      Vary := DeleteCustomHeader(Context, 'VARY:');
+      if Vary <> '' then
+        Vary := Vary + ',Accept-Encoding'
+      else
+        Vary := 'Accept-Encoding';
+      AddCustomHeader(Context, 'Vary', Vary);
+    end;
+  end;
 end;
 
 procedure TBoilerplateHTTPServer.SetExpires(const Value: RawUTF8);
@@ -1604,6 +1671,11 @@ begin
         Inc(PByteArray(Ext)[Index], 32);
   end else
     Ext := '';
+end;
+
+procedure TBoilerplateHTTPServer.UnregisterCustomOptions(const URL: RawUTF8);
+begin
+  FCustomOptions.Delete(URL);
 end;
 
 procedure TBoilerplateHTTPServer.SaveStaticAsset(

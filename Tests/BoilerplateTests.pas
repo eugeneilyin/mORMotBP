@@ -46,6 +46,9 @@ type
     procedure DeleteServerInternalState;
     procedure DelegateIndexToInheritedDefault;
     procedure Delegate404ToInherited_404;
+    procedure RegisterCustomOptions;
+    procedure UnregisterCustomOptions;
+    procedure SetVaryAcceptEncoding;
   end;
 
   TBoilerplateFeatures = class(TSynTests)
@@ -467,6 +470,23 @@ begin
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'https://www.domain.com/index.html');
     ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.UnregisterCustomOptions;
+var
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoTransform]);
+    RegisterCustomOptions('/index.html', [bpoSetCacheNoCache]);
+    UnregisterCustomOptions('/index.html');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'no-transform');
   end;
 end;
 
@@ -1028,6 +1048,30 @@ begin
   end;
 end;
 
+procedure TBoilerplateHTTPServerShould.RegisterCustomOptions;
+var
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoTransform]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'no-transform');
+    ThenRequestResultIs(HTML_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoTransform]);
+    RegisterCustomOptions('/index.html', [bpoSetCacheNoCache]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'no-cache');
+    ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
 procedure TBoilerplateHTTPServerShould.ForceTextUTF8Charset;
 var
   Steps: TBoilerplateHTTPServerSteps;
@@ -1481,6 +1525,33 @@ begin
     ThenOutHeaderValueIs('P3P', 'policyref="/w3c/p3p.xml", CP="IDC ' +
       'DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"');
     ThenRequestResultIs(HTML_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SetVaryAcceptEncoding;
+var
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Vary', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoVaryAcceptEncoding]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Vary', 'Accept-Encoding');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoVaryAcceptEncoding]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Vary', '');
   end;
 end;
 

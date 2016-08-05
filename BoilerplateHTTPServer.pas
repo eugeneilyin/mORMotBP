@@ -14,18 +14,35 @@ unit BoilerplateHTTPServer;
 
   https://github.com/eugeneilyin/mORMotBP
 
-  Version 1.0
+  Version 1.0.0
   - First public release
 
-  Version 1.1
+  Version 1.1.0
   - minor "Cache-Control" parameters order changes
   - added bpoDelegateIndexToInheritedDefault to delegate index.html to Default()
   - added bpoDelegate404ToInherited_404 to delegate 404.html to _404()
 
-  Version 1.2
-  - fix "Accept-Encoding" parsing when gzip in the end of encoding list
+  Version 1.2.0
+  - fix "Accept-Encoding" parsing when gzip in the end of encodings list
   - make Pre-Build events notice more visible in tests and demo
   - minor code refactoring
+
+  Version 1.3.0
+  - fix bug in assetslz tool when asset name started with '.'
+
+  Version 1.4.0
+  - make TAsset to be packed record for better x86/x64 platforms compatibility
+
+  Version 1.5.0
+  - fix EnableCacheByETag test scenarios
+
+  Version 1.6.0
+  - add custom options registration
+  - add Vary header into http response for compressible resources
+
+  Version 1.7.0
+  - add custom options registration for group of URLs
+
 *)
 
 interface
@@ -499,6 +516,7 @@ type
     function FindHost(const Context: THttpServerRequest): SockString; virtual;
       {$ifdef HASINLINE}inline;{$endif}
 
+    /// Find custom options registered for specific URL by RegisterCustomOptions
     function FindCustomOptions(const URL: RawUTF8;
       const Default: TBoilerplateOptions): TBoilerplateOptions;
 
@@ -547,14 +565,23 @@ type
     /// Load assets from RT_RCDATA synzl-compressed resource
     procedure LoadFromResource(const ResName: string);
 
-    /// Register custom Cache-Control options for specific URL's
+    /// Register custom Cache-Control options for specific URL
     // For example if you want cache most *.html pages with standart
     // Cache-Control options, but change this rule for default page or login page
     procedure RegisterCustomOptions(const URL: RawUTF8;
-      CustomCacheOptions: TBoilerplateOptions);
+      CustomOptions: TBoilerplateOptions); overload;
+
+    /// Register custom Cache-Control options for specific URL's
+    // For example if you want cache most *.html pages with standart
+    // Cache-Control options, but change this rule for default page or login page
+    procedure RegisterCustomOptions(const URLs: TRawUTF8DynArray;
+      CustomOptions: TBoilerplateOptions); overload;
 
     /// Removes custom options usage for specific URL
-    procedure UnregisterCustomOptions(const URL: RawUTF8);
+    procedure UnregisterCustomOptions(const URL: RawUTF8); overload;
+
+    /// Removes custom options usage for specific URLs
+    procedure UnregisterCustomOptions(const URLs: TRawUTF8DynArray); overload;
 
     /// See TBoilerplateOptions
     property Options: TBoilerplateOptions read FOptions write FOptions;
@@ -1152,16 +1179,25 @@ begin
 end;
 
 procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URL: RawUTF8;
-  CustomCacheOptions: TBoilerplateOptions);
+  CustomOptions: TBoilerplateOptions);
 
   function GetOptionsValue: RawUTF8;
   begin
-    SetLength(Result, SizeOf(CustomCacheOptions));
-    MoveFast(CustomCacheOptions, Result[1], SizeOf(CustomCacheOptions));
+    SetLength(Result, SizeOf(CustomOptions));
+    MoveFast(CustomOptions, Result[1], SizeOf(CustomOptions));
   end;
 
 begin
   FCustomOptions.Add(URL, GetOptionsValue);
+end;
+
+procedure TBoilerplateHTTPServer.RegisterCustomOptions(
+  const URLs: TRawUTF8DynArray; CustomOptions: TBoilerplateOptions);
+var
+  Index: Integer;
+begin
+  for Index := Low(URLs) to High(URLs) do
+    RegisterCustomOptions(URLs[Index], CustomOptions);
 end;
 
 function TBoilerplateHTTPServer.Request(Context: THttpServerRequest): Cardinal;
@@ -1671,6 +1707,15 @@ begin
         Inc(PByteArray(Ext)[Index], 32);
   end else
     Ext := '';
+end;
+
+procedure TBoilerplateHTTPServer.UnregisterCustomOptions(
+  const URLs: TRawUTF8DynArray);
+var
+  Index: Integer;
+begin
+  for Index := Low(URLs) to High(URLs) do
+    UnregisterCustomOptions(URLs[Index]);
 end;
 
 procedure TBoilerplateHTTPServer.UnregisterCustomOptions(const URL: RawUTF8);

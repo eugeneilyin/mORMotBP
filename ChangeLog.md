@@ -23,3 +23,7 @@ Version 1.5.0
 Version 1.6.0
  - add custom options registration
  - add Vary header into http response for compressible resources
+
+Version 1.7.0
+ - add custom options registration for group of URLs
+ - get rid of system PosEx for better compatibility with Delphi 2007 and below

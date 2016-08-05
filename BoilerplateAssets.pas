@@ -14,8 +14,11 @@ unit BoilerplateAssets;
 
   https://github.com/eugeneilyin/mORMotBP
 
-  Version 1.0
+  Version 1.0.0
   - First public release
+
+  Version 1.7.0
+  - get rid of system PosEx for better compatibility with Delphi 2007 and below
 
 *)
 
@@ -256,11 +259,13 @@ procedure CreateDirectories(const FileName: TFileName);
   {$ifdef HASINLINE} inline;{$endif}
 var
   Index: Integer;
+  LFileName: RawUTF8;
   Directory: TFileName;
 begin
+  LFileName := ToUTF8(FileName);
   Index := 1;
   repeat
-    Index := Pos(PathDelim, FileName, Index);
+    Index := PosEx(PathDelim, LFileName, Index);
     if Index = 0 then Exit;
     SetString(Directory, PChar(FileName), Index);
     EnsureDirectoryExists(Directory, True);

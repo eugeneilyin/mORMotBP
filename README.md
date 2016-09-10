@@ -42,4 +42,4 @@ The code is available under the [MIT license](License.txt).
 
 ## Contacts
 
-Fill free to contact me at **@gmail.com**: **eugene.ilyin**
+Feel free to contact me at **@gmail.com**: **eugene.ilyin**

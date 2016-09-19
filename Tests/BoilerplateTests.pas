@@ -174,14 +174,14 @@ begin
     GivenOptions([]);
     WhenRequest('/fonts/Roboto-Regular.woff2');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoAllowCrossOriginFonts]);
     WhenRequest('/fonts/Roboto-Regular.woff2');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -189,7 +189,7 @@ begin
     GivenInHeader('Origin', 'localhost');
     WhenRequest('/fonts/Roboto-Regular.woff2');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '*');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -205,14 +205,14 @@ begin
     GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoAllowCrossOriginImages]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -220,7 +220,7 @@ begin
     GivenInHeader('Origin', 'localhost');
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '*');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -236,14 +236,14 @@ begin
     GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoAllowCrossOriginTiming]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Timing-Allow-Origin', '*');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -258,13 +258,13 @@ begin
     GivenAssets;
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Security-Policy', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Content-Security-Policy', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -272,14 +272,14 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Security-Policy',
       '"script-src ''self''; object-src ''self''"');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenContentSecurityPolicy('"script-src ''self''; object-src ''self''"');
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Content-Security-Policy', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -298,7 +298,7 @@ begin
     GivenInHeader('Accept-Encoding', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -306,7 +306,7 @@ begin
     GivenInHeader('Accept-Encoding', 'gzip');
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -314,7 +314,7 @@ begin
     GivenInHeader('Accept-Encoding', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -322,7 +322,7 @@ begin
     GivenInHeader('Accept-Encoding', 'deflate, sdch, br, gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -330,7 +330,7 @@ begin
     GivenInHeader('Accept-Encoding', 'gzip');
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     for Level := Low(TGZipLevel) to High(TGZipLevel) do
     begin
@@ -343,7 +343,7 @@ begin
       Data := StringFromFile('Assets\index.html');
       CompressGZip(Data, Integer(Level));
       ThenOutContentIs(Data);
-      ThenRequestResultIs(HTML_SUCCESS);
+      ThenRequestResultIs(HTTP_SUCCESS);
     end;
   end;
 end;
@@ -397,7 +397,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Strict-Transport-Security', '');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -405,7 +405,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Strict-Transport-Security', 'max-age=16070400');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -414,7 +414,7 @@ begin
     ThenOutHeaderValueIs('Strict-Transport-Security',
       'max-age=16070400; includeSubDomains');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -430,14 +430,14 @@ begin
     GivenWWWRewrite(wwwOff);
     GivenOptions([]);
     WhenRequest('/index.html', 'www.domain.com');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenWWWRewrite(wwwOff);
     GivenOptions([]);
     WhenRequest('/index.html', 'www.domain.com', True);
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -445,7 +445,7 @@ begin
     WhenRequest('/index.html', 'www.domain.com');
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'http://domain.com/index.html');
-    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
 
     GivenClearServer;
     GivenAssets;
@@ -453,7 +453,7 @@ begin
     WhenRequest('/index.html', 'www.domain.com', True);
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'https://domain.com/index.html');
-    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
 
     GivenClearServer;
     GivenAssets;
@@ -461,7 +461,7 @@ begin
     WhenRequest('/index.html', 'domain.com');
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'http://www.domain.com/index.html');
-    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
 
     GivenClearServer;
     GivenAssets;
@@ -469,7 +469,7 @@ begin
     WhenRequest('/index.html', 'domain.com', True);
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'https://www.domain.com/index.html');
-    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
   end;
 end;
 
@@ -508,7 +508,7 @@ begin
   begin
     GivenClearServer;
     WhenRequest;
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
   end;
 end;
 
@@ -525,7 +525,7 @@ begin
     GivenOptions([bpoDelegateBadRequestTo404]);
     WhenRequest('123456');
     ThenOutContentEqualsFile('Assets\404.html');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
 
     GivenClearServer;
     GivenAssets;
@@ -533,7 +533,7 @@ begin
     GivenOptions([bpoDelegateBadRequestTo404, bpoDelegate404ToInherited_404]);
     WhenRequest;
     ThenOutContentIs('404 CONTENT');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
   end;
 end;
 
@@ -547,13 +547,13 @@ begin
     GivenClearServer;
     GivenOptions([]);
     WhenRequest('root/12345');
-    ThenRequestResultIs(HTML_BADREQUEST);
+    ThenRequestResultIs(HTTP_BADREQUEST);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoDelegateBadRequestTo404]);
     WhenRequest('root/12345');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
     ThenOutContentEqualsFile('Assets\404.html');
   end;
 end;
@@ -570,14 +570,14 @@ begin
     GivenAssets;
     WhenRequest('/sample.conf');
     ThenOutContentEqualsFile('Assets\sample.conf');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoDelegateBlocked]);
     WhenRequest('/sample.conf');
     ThenOutContentEqualsFile('Assets\404.html');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
   end;
 end;
 
@@ -591,13 +591,13 @@ begin
     GivenClearServer;
     GivenOptions([]);
     WhenRequest('root/12345');
-    ThenRequestResultIs(HTML_FORBIDDEN);
+    ThenRequestResultIs(HTTP_FORBIDDEN);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoDelegateForbiddenTo404]);
     WhenRequest('root/12345');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
     ThenOutContentEqualsFile('Assets\404.html');
   end;
 end;
@@ -612,13 +612,13 @@ begin
     GivenClearServer;
     GivenOptions([]);
     WhenRequest('/12345');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoDelegateNotFoundTo404]);
     WhenRequest('/12345');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
     ThenOutContentEqualsFile('Assets\404.html');
   end;
 end;
@@ -635,28 +635,28 @@ begin
     GivenOptions([]);
     WhenRequest('');
     ThenOutContentIs('');
-    ThenRequestResultIs(HTML_BADREQUEST);
+    ThenRequestResultIs(HTTP_BADREQUEST);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
     WhenRequest('/');
     ThenOutContentIs('');
-    ThenRequestResultIs(HTML_BADREQUEST);
+    ThenRequestResultIs(HTTP_BADREQUEST);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoDelegateRootToIndex]);
     WhenRequest('');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoDelegateRootToIndex]);
     WhenRequest('/');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -694,7 +694,7 @@ begin
     GivenOutHeader('X-Powered-By', '123');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-Powered-By', '123');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -702,7 +702,7 @@ begin
     GivenOutHeader('X-Powered-By', '123');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-Powered-By', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -718,20 +718,20 @@ begin
     GivenOptions([]);
     WhenRequest('/index.html');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
     WhenRequest('/index.html?123');
-    ThenRequestResultIs(HTML_NOTFOUND);
+    ThenRequestResultIs(HTTP_NOTFOUND);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoEnableCacheBusting]);
     WhenRequest('/index.html?123');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -752,7 +752,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('ETag', '');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -761,7 +761,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('ETag', '');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -769,7 +769,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('ETag', Hash);
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -778,7 +778,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('ETag', '');
     ThenOutContentIsEmpty;
-    ThenRequestResultIs(HTML_NOTMODIFIED);
+    ThenRequestResultIs(HTTP_NOTMODIFIED);
   end;
 end;
 
@@ -801,7 +801,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Last-Modified', '');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -810,7 +810,7 @@ begin
     WhenRequest('/index.html');
     ThenOutContentEqualsFile('Assets\index.html');
     ThenOutHeaderValueIs('Last-Modified', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -818,7 +818,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Last-Modified', LastModified);
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -827,7 +827,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Last-Modified', '');
     ThenOutContentIsEmpty;
-    ThenRequestResultIs(HTML_NOTMODIFIED);
+    ThenRequestResultIs(HTTP_NOTMODIFIED);
   end;
 end;
 
@@ -843,28 +843,28 @@ begin
     GivenOptions([]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-XSS-Protection', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('X-XSS-Protection', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoEnableXSSFilter]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-XSS-Protection', '1; mode=block');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoEnableXSSFilter]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('X-XSS-Protection', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -880,7 +880,7 @@ begin
     GivenOptions([]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -888,7 +888,7 @@ begin
     GivenInHeader('Accept-Encoding', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -896,7 +896,7 @@ begin
     GivenInHeader('Accept-Encoding', 'gzip, deflate, sdch');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -904,7 +904,7 @@ begin
     GivenInHeader('Accept-EncodXng', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -912,7 +912,7 @@ begin
     GivenInHeader('Accept-EncodXng', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -920,7 +920,7 @@ begin
     GivenInHeader('X-cept-Encoding', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -936,7 +936,7 @@ begin
     GivenOptions([]);
     WhenRequest('/img/sample.svgz');
     ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -944,7 +944,7 @@ begin
     WhenRequest('/img/sample.svgz');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
     ThenOutContentEqualsFile('Assets\img\sample.svgz');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -959,7 +959,7 @@ begin
     GivenAssets;
     GivenOptions([]);
     WhenRequest('/index.html', 'localhost');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -967,7 +967,7 @@ begin
     WhenRequest('/index.html', 'localhost');
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'https://localhost/index.html');
-    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
   end;
 end;
 
@@ -984,7 +984,7 @@ begin
     GivenOptions([bpoDelegateRootToIndex]);
     WhenRequest('');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -992,7 +992,7 @@ begin
     GivenOptions([bpoDelegateRootToIndex, bpoDelegateIndexToInheritedDefault]);
     WhenRequest;
     ThenOutContentIs('DEFAULT CONTENT');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1028,7 +1028,7 @@ begin
     GivenAssets;
     WhenRequest('/img/marmot.jpg');
     ThenOutContentEqualsFile('Assets\img\marmot.jpg');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1045,7 +1045,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-Content-Type-Options', '');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -1053,7 +1053,7 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-Content-Type-Options', 'nosniff');
     ThenOutContentEqualsFile('Assets\index.html');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1069,7 +1069,7 @@ begin
     GivenOptions([bpoSetCacheNoTransform]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-transform');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -1077,14 +1077,14 @@ begin
     RegisterCustomOptions('/index.html', [bpoSetCacheNoCache]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-cache');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCacheNoTransform]);
     WhenRequest('/404.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-transform');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -1092,7 +1092,7 @@ begin
     RegisterCustomOptions('/index.html', [bpoSetCacheNoCache]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-cache');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -1100,7 +1100,7 @@ begin
     RegisterCustomOptions(['/index.html', '/404.html'], [bpoSetCacheNoCache]);
     WhenRequest('/404.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-cache');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1163,7 +1163,7 @@ begin
     GivenAssets;
     WhenRequest('/img/marmot.JPG', 'localhost');
     ThenOutContentEqualsFile('Assets\img\marmot.jpg');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -1171,7 +1171,7 @@ begin
     WhenRequest('/img/marmot.JPG', 'localhost');
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'http://localhost/img/marmot.jpg');
-    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
 
     GivenClearServer;
     GivenAssets;
@@ -1179,7 +1179,7 @@ begin
     WhenRequest('/img/marmot.JPG', 'localhost', True);
     ThenOutContentIsEmpty;
     ThenOutHeaderValueIs('Location', 'https://localhost/img/marmot.jpg');
-    ThenRequestResultIs(HTML_MOVEDPERMANENTLY);
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
   end;
 end;
 
@@ -1324,14 +1324,14 @@ begin
     GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCacheNoTransform]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'no-transform');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1347,49 +1347,49 @@ begin
     GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCacheNoTransform]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'no-transform');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCachePublic]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'public');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCachePrivate]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'private');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCacheNoCache]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'no-cache');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCacheNoStore]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'no-store');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCacheMustRevalidate]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'must-revalidate');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -1397,7 +1397,7 @@ begin
     GivenOutHeader('Cache-Control', 'max-age=0');
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Cache-Control', 'max-age=0, public');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1548,7 +1548,7 @@ begin
     GivenOptions([]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('P3P', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
@@ -1556,7 +1556,7 @@ begin
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('P3P', 'policyref="/w3c/p3p.xml", CP="IDC ' +
       'DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1599,28 +1599,28 @@ begin
     GivenOptions([]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-Frame-Options', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('X-Frame-Options', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetXFrameOptions]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-Frame-Options', 'DENY');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetXFrameOptions]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('X-Frame-Options', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
@@ -1636,28 +1636,28 @@ begin
     GivenOptions([]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-UA-Compatible', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('X-UA-Compatible', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetXUACompatible]);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-UA-Compatible', 'IE=edge');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetXUACompatible]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('X-UA-Compatible', '');
-    ThenRequestResultIs(HTML_SUCCESS);
+    ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 

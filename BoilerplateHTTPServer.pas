@@ -1233,7 +1233,7 @@ begin
       Delete(Host, 1, 4);
       AddCustomHeader(Context, 'Location', SockString(
         FormatUTF8('http%://%%', [HTTPS[Context.UseSSL], Host, Path])));
-      Result := HTML_MOVEDPERMANENTLY;
+      Result := HTTP_MOVEDPERMANENTLY;
       Exit;
     end;
   end;
@@ -1246,7 +1246,7 @@ begin
       Host := 'www.' + Host;
       AddCustomHeader(Context, 'Location', SockString(
         FormatUTF8('http%://%%', [HTTPS[Context.UseSSL], Host, Path])));
-      Result := HTML_MOVEDPERMANENTLY;
+      Result := HTTP_MOVEDPERMANENTLY;
       Exit;
     end;
   end;
@@ -1258,7 +1258,7 @@ begin
     begin
       AddCustomHeader(Context, 'Location', SockString(
         FormatUTF8('https://%%', [Host, Path])));
-      Result := HTML_MOVEDPERMANENTLY;
+      Result := HTTP_MOVEDPERMANENTLY;
       Exit;
     end;
   end;
@@ -1278,7 +1278,7 @@ begin
           AddCustomHeader(Context, 'Location', SockString(
             FormatUTF8('http%://%%',
               [HTTPS[Context.UseSSL], Host, PathLowerCased])));
-          Result := HTML_MOVEDPERMANENTLY;
+          Result := HTTP_MOVEDPERMANENTLY;
           Exit;
         end;
       end;
@@ -1290,21 +1290,21 @@ begin
     if not IsContentModified(Context, Asset, bpoEnableCacheByETag in LOptions,
       bpoEnableCacheByLastModified in LOptions) then
     begin
-      Result := HTML_NOTMODIFIED;
+      Result := HTTP_NOTMODIFIED;
       Exit;
     end;
     ContentType := ContentTypeWithoutCharset(Asset.ContentType);
     Context.OutContentType := Asset.ContentType;
     Context.OutContent := Asset.Content;
-    Result := HTML_SUCCESS;
+    Result := HTTP_SUCCESS;
   end else begin
     Result := inherited Request(Context);
     ContentType := ContentTypeWithoutCharset(Context.OutContentType);
   end;
 
-  if ((Result = HTML_BADREQUEST) and (bpoDelegateBadRequestTo404 in LOptions)) or
-    ((Result = HTML_FORBIDDEN) and (bpoDelegateForbiddenTo404 in LOptions)) or
-    ((Result = HTML_NOTFOUND) and (bpoDelegateNotFoundTo404 in LOptions)) or
+  if ((Result = HTTP_BADREQUEST) and (bpoDelegateBadRequestTo404 in LOptions)) or
+    ((Result = HTTP_FORBIDDEN) and (bpoDelegateForbiddenTo404 in LOptions)) or
+    ((Result = HTTP_NOTFOUND) and (bpoDelegateNotFoundTo404 in LOptions)) or
     ((bpoDelegateBlocked in LOptions) and
       FastInArray(Ext, FFileTypesBlockedArray)) then
   begin
@@ -1314,7 +1314,7 @@ begin
         Prepare('/404', Method, InHeaders, InContent, InContentType);
       inherited Request(Context);
       ContentType := ContentTypeWithoutCharset(Context.OutContentType);
-      Result := HTML_NOTFOUND;
+      Result := HTTP_NOTFOUND;
     end else begin
       with Context do
         Prepare('/404.html', Method, InHeaders, InContent, InContentType);
@@ -1325,7 +1325,7 @@ begin
         Context.OutContentType := Asset.ContentType;
         Context.OutContent := Asset.Content;
         ContentType := ContentTypeWithoutCharset(Asset.ContentType);
-        Result := HTML_NOTFOUND;
+        Result := HTTP_NOTFOUND;
       end;
     end;
   end;

@@ -49,6 +49,7 @@ type
     procedure RegisterCustomOptions;
     procedure UnregisterCustomOptions;
     procedure SetVaryAcceptEncoding;
+    procedure RedirectInInherited_404;
   end;
 
   TBoilerplateFeatures = class(TSynTests)
@@ -70,6 +71,11 @@ uses
   BoilerplateHTTPServer;
 
 type
+
+  IBoilerplateApplication = interface(IMVCApplication)
+    ['{79968060-F121-46B9-BA5C-C4740B4445D6}']
+    procedure _404(out Scope: Variant);
+  end;
 
   THttpServerRequestStub = class(THttpServerRequest)
   private
@@ -93,11 +99,11 @@ type
     FTestCase: TSynTestCase;
     FModel: TSQLModel;
     FServer: TSQLRestServer;
-    FApplication: TMVCApplication;
+    FApplication: IBoilerplateApplication;
     FContext: THttpServerRequestStub;
   public
     constructor Create(const TestCase: TSynTestCase;
-      const Auth: Boolean = False);
+      const Auth: Boolean = False; AApplication: IBoilerplateApplication = nil);
     destructor Destroy; override;
     procedure GivenClearServer;
     procedure GivenAssets(const Name: string = 'ASSETS');
@@ -124,12 +130,16 @@ type
     procedure ThenRequestResultIs(const Value: Cardinal);
   end;
 
-  IBoilerplateApplication = interface(IMVCApplication)
-    ['{79968060-F121-46B9-BA5C-C4740B4445D6}']
+  TBoilerplateApplication = class(TMVCApplication, IBoilerplateApplication)
+  public
+    procedure Start(Server: TSQLRestServer); reintroduce;
+  published
+    procedure Error(var Msg: RawUTF8; var Scope: Variant);
+    procedure Default(var Scope: Variant);
     procedure _404(out Scope: Variant);
   end;
 
-  TBoilerplateApplication = class(TMVCApplication, IBoilerplateApplication)
+  TRedirectApplication = class(TMVCApplication, IBoilerplateApplication)
   public
     procedure Start(Server: TSQLRestServer); reintroduce;
   published
@@ -1057,6 +1067,22 @@ begin
   end;
 end;
 
+procedure TBoilerplateHTTPServerShould.RedirectInInherited_404;
+var
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, False,
+    TRedirectApplication.Create));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenOptions([bpoDelegateBadRequestTo404, bpoDelegate404ToInherited_404]);
+    GivenInHeader('Host', 'localhost');
+    WhenRequest('123456');
+    ThenRequestResultIs(HTTP_TEMPORARYREDIRECT);
+  end;
+end;
+
 procedure TBoilerplateHTTPServerShould.RegisterCustomOptions;
 var
   Steps: TBoilerplateHTTPServerSteps;
@@ -1722,13 +1748,24 @@ begin
 end;
 
 constructor TBoilerplateHTTPServerSteps.Create(const TestCase: TSynTestCase;
-  const Auth: Boolean);
+  const Auth: Boolean; AApplication: IBoilerplateApplication);
 begin
   FTestCase := TestCase;
   FModel := TSQLModel.Create([]);
   FServer := TSQLRestServerFullMemory.Create(FModel, Auth);
-  FApplication := TBoilerplateApplication.Create;
-  TBoilerplateApplication(FApplication).Start(FServer);
+  FApplication := AApplication;
+  if FApplication = nil then
+  begin
+    FApplication := TBoilerplateApplication.Create;
+    TBoilerplateApplication(FApplication).Start(FServer);
+  end else
+    if FApplication is TBoilerplateApplication then
+      TBoilerplateApplication(FApplication).Start(FServer)
+    else if FApplication is TRedirectApplication then
+      TRedirectApplication(FApplication).Start(FServer)
+    else
+      TMVCApplication(FApplication).Start(FServer,
+        TypeInfo(IBoilerplateApplication));
   FContext := THttpServerRequestStub.Create(nil, 0, nil);
   inherited Create('0', FServer, '+', useHttpSocket, nil, 0);
   DomainHostRedirect('localhost', 'root');
@@ -1745,7 +1782,7 @@ destructor TBoilerplateHTTPServerSteps.Destroy;
 begin
   inherited;
   FContext.Free;
-  FApplication.Free;
+  FApplication := nil;
   FServer.Free;
   FModel.Free;
 end;
@@ -1834,7 +1871,7 @@ end;
 
 procedure THttpServerRequestStub.Init;
 begin
-  Prepare('', '', '', '', '');
+  Prepare('', '', '', '', '', '');
   FOutCustomHeaders := '';
   FOutContentType := '';
   FOutContent := '';
@@ -1892,6 +1929,28 @@ begin
   LogFiles := FindFiles(GetCurrentDir, 'mORMotBPTests ???????? ??????.log');
   for Index := Low(LogFiles) to High(LogFiles) do
     DeleteFile(LogFiles[Index].Name);
+end;
+
+{ TRedirectApplication }
+
+procedure TRedirectApplication.Default(var Scope: Variant);
+begin
+end;
+
+procedure TRedirectApplication.Error(var Msg: RawUTF8; var Scope: Variant);
+begin
+end;
+
+procedure TRedirectApplication.Start(Server: TSQLRestServer);
+begin
+  inherited Start(Server, TypeInfo(IBoilerplateApplication));
+  FMainRunner := TMVCRunOnRestServer.Create(Self, fRestServer);
+end;
+
+procedure TRedirectApplication._404(out Scope: Variant);
+begin
+  raise EMVCApplication.CreateGotoView(
+    'http://redirection.com', [], HTTP_TEMPORARYREDIRECT);
 end;
 
 end.

@@ -43,6 +43,11 @@ unit BoilerplateHTTPServer;
   Version 1.7.0
   - add custom options registration for group of URLs
 
+  Version 1.8.0
+  - support redirections in /404 response
+  - changed HTML_* to HTTP_* constants following the mORMot refactoring
+  - support new HTTP context initialization spec
+
 *)
 
 interface
@@ -1217,9 +1222,9 @@ begin
     ((Context.URL = '') or (Context.URL = '/')) then
     with Context do
       if bpoDelegateIndexToInheritedDefault in FOptions then
-        Prepare('/Default', Method, InHeaders, InContent, InContentType)
+        Prepare('/Default', Method, InHeaders, InContent, InContentType, '')
       else
-        Prepare('/index.html', Method, InHeaders, InContent, InContentType);
+        Prepare('/index.html', Method, InHeaders, InContent, InContentType, '');
 
   SplitURL(Context.URL, Path, Ext, bpoEnableCacheBusting in FOptions);
 
@@ -1311,13 +1316,14 @@ begin
     if bpoDelegate404ToInherited_404 in LOptions then
     begin
       with Context do
-        Prepare('/404', Method, InHeaders, InContent, InContentType);
-      inherited Request(Context);
+        Prepare('/404', Method, InHeaders, InContent, InContentType, '');
+      Result := inherited Request(Context);
+      if Result = HTTP_SUCCESS then
+        Result := HTTP_NOTFOUND;
       ContentType := ContentTypeWithoutCharset(Context.OutContentType);
-      Result := HTTP_NOTFOUND;
     end else begin
       with Context do
-        Prepare('/404.html', Method, InHeaders, InContent, InContentType);
+        Prepare('/404.html', Method, InHeaders, InContent, InContentType, '');
       Asset := FAssets.Find('/404.html');
       if Asset <> nil then
       begin

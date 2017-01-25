@@ -27,3 +27,8 @@ Version 1.6.0
 Version 1.7.0
  - add custom options registration for group of URLs
  - get rid of system PosEx for better compatibility with Delphi 2007 and below
+
+Version 1.8.0
+ - support redirections in /404 response
+ - changed HTML_* to HTTP_* constants following the mORMot refactoring
+ - support new HTTP context initialization spec

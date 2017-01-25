@@ -43,6 +43,11 @@ unit BoilerplateHTTPServer;
   Version 1.7.0
   - add custom options registration for group of URLs
 
+  Version 1.8.0
+  - support redirections in /404 response
+  - changed HTML_* to HTTP_* constants following the mORMot refactoring
+  - support new HTTP context initialization spec
+
 *)
 
 interface
@@ -1312,9 +1317,10 @@ begin
     begin
       with Context do
         Prepare('/404', Method, InHeaders, InContent, InContentType, '');
-      inherited Request(Context);
+      Result := inherited Request(Context);
+      if Result = HTTP_SUCCESS then
+        Result := HTTP_NOTFOUND;
       ContentType := ContentTypeWithoutCharset(Context.OutContentType);
-      Result := HTTP_NOTFOUND;
     end else begin
       with Context do
         Prepare('/404.html', Method, InHeaders, InContent, InContentType, '');

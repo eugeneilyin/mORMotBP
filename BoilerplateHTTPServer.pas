@@ -454,6 +454,7 @@ type
     FGZippedAssets: TSynNameValue;
     FStaticRoot: TFileName;
     FCustomOptions: TSynNameValue;
+    FCustomOptionPrefixes: TSynNameValue;
 
     /// Init assets and set default values for properties
     procedure Init; virtual;
@@ -573,12 +574,14 @@ type
     /// Register custom Cache-Control options for specific URL
     // For example if you want cache most *.html pages with standart
     // Cache-Control options, but change this rule for default page or login page
+    // For URLs prefix use asterisk, e.g. '/customer/*'
     procedure RegisterCustomOptions(const URL: RawUTF8;
       CustomOptions: TBoilerplateOptions); overload;
 
     /// Register custom Cache-Control options for specific URL's
     // For example if you want cache most *.html pages with standart
     // Cache-Control options, but change this rule for default page or login page
+    // For URLs prefix use asterisk, e.g. '/customer/*'
     procedure RegisterCustomOptions(const URLs: TRawUTF8DynArray;
       CustomOptions: TBoilerplateOptions); overload;
 
@@ -979,6 +982,14 @@ function TBoilerplateHTTPServer.FindCustomOptions(const URL: RawUTF8;
 var
   Index: Integer;
 
+  function FindPrefix(const UpperURL: RawUTF8): Integer;
+  begin
+    for Result := 0 to FCustomOptionPrefixes.Count - 1 do
+      if IdemPChar(Pointer(UpperURL),
+        Pointer(FCustomOptionPrefixes.List[Result].Name)) then Exit;
+    Result := -1;
+  end;
+
   function StrToOptions(const Str: RawUTF8): TBoilerplateOptions;
   begin
     MoveFast(Str[1], Result, SizeOf(Result));
@@ -987,9 +998,19 @@ var
 begin
   Index := FCustomOptions.Find(URL);
   if Index >= 0 then
-    Result := StrToOptions(FCustomOptions.List[Index].Value)
-  else
-    Result := Default;
+  begin
+    Result := StrToOptions(FCustomOptions.List[Index].Value);
+    Exit;
+  end;
+
+  Index := FindPrefix(UpperCase(URL));
+  if Index >= 0 then
+  begin
+    Result := StrToOptions(FCustomOptionPrefixes.List[Index].Value);
+    Exit;
+  end;
+
+  Result := Default;
 end;
 
 function TBoilerplateHTTPServer.FindHost(
@@ -1109,6 +1130,7 @@ begin
   SetFileTypesForceGZipHeader(DEFAULT_FILE_TYPES_FORCE_GZIP_HEADER);
   SetExpires(DEFAULT_EXPIRES);
   FCustomOptions.Init(False);
+  FCustomOptionPrefixes.Init(False);
 end;
 
 function TBoilerplateHTTPServer.IsContentModified(Context: THttpServerRequest;
@@ -1193,7 +1215,11 @@ procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URL: RawUTF8;
   end;
 
 begin
-  FCustomOptions.Add(URL, GetOptionsValue);
+  if Copy(URL, Length(URL), 1) = '*' then
+    FCustomOptionPrefixes.Add(
+      UpperCase(Copy(URL, 1, Length(URL) - 1)), GetOptionsValue)
+  else
+    FCustomOptions.Add(URL, GetOptionsValue);
 end;
 
 procedure TBoilerplateHTTPServer.RegisterCustomOptions(
@@ -1726,7 +1752,10 @@ end;
 
 procedure TBoilerplateHTTPServer.UnregisterCustomOptions(const URL: RawUTF8);
 begin
-  FCustomOptions.Delete(URL);
+  if Copy(URL, Length(URL), 1) = '*' then
+    FCustomOptionPrefixes.Delete(UpperCase(Copy(URL, 1, Length(URL) - 1)))
+  else
+    FCustomOptions.Delete(URL);
 end;
 
 procedure TBoilerplateHTTPServer.SaveStaticAsset(

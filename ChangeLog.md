@@ -32,3 +32,6 @@ Version 1.8.0
  - support redirections in /404 response
  - changed HTML_* to HTTP_* constants following the mORMot refactoring
  - support new HTTP context initialization spec
+
+Version 1.8.1
+ - RegisterCustomOptions now supports URLs prefixes

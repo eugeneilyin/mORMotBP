@@ -506,6 +506,14 @@ begin
     UnregisterCustomOptions(['/index.html', '/404.html']);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-transform');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoTransform]);
+    RegisterCustomOptions('/index*', [bpoSetCacheNoCache]);
+    UnregisterCustomOptions('/index*');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Cache-Control', 'no-transform');
   end;
 end;
 
@@ -1125,6 +1133,14 @@ begin
     GivenOptions([bpoSetCacheNoTransform]);
     RegisterCustomOptions(['/index.html', '/404.html'], [bpoSetCacheNoCache]);
     WhenRequest('/404.html');
+    ThenOutHeaderValueIs('Cache-Control', 'no-cache');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetCacheNoTransform]);
+    RegisterCustomOptions('/index*', [bpoSetCacheNoCache]);
+    WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-cache');
     ThenRequestResultIs(HTTP_SUCCESS);
   end;

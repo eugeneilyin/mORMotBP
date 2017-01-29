@@ -48,6 +48,9 @@ unit BoilerplateHTTPServer;
   - changed HTML_* to HTTP_* constants following the mORMot refactoring
   - support new HTTP context initialization spec
 
+  Version 1.8.1
+  - RegisterCustomOptions now supports URLs prefixes
+
 *)
 
 interface
@@ -523,7 +526,7 @@ type
       {$ifdef HASINLINE}inline;{$endif}
 
     /// Find custom options registered for specific URL by RegisterCustomOptions
-    function FindCustomOptions(const URL: RawUTF8;
+    function FindCustomOptions(const URLPath: RawUTF8;
       const Default: TBoilerplateOptions): TBoilerplateOptions;
 
     procedure SetFileTypesImage(const Value: RawUTF8);
@@ -572,24 +575,25 @@ type
     procedure LoadFromResource(const ResName: string);
 
     /// Register custom Cache-Control options for specific URL
-    // For example if you want cache most *.html pages with standart
-    // Cache-Control options, but change this rule for default page or login page
+    // For example if you want to cache most of *.html pages with standart
+    // Cache-Control options, but change this rule for
+    // default page or login page.
     // For URLs prefix use asterisk, e.g. '/customer/*'
-    procedure RegisterCustomOptions(const URL: RawUTF8;
+    procedure RegisterCustomOptions(const URLPath: RawUTF8;
       CustomOptions: TBoilerplateOptions); overload;
 
     /// Register custom Cache-Control options for specific URL's
     // For example if you want cache most *.html pages with standart
     // Cache-Control options, but change this rule for default page or login page
     // For URLs prefix use asterisk, e.g. '/customer/*'
-    procedure RegisterCustomOptions(const URLs: TRawUTF8DynArray;
+    procedure RegisterCustomOptions(const URLParts: TRawUTF8DynArray;
       CustomOptions: TBoilerplateOptions); overload;
 
     /// Removes custom options usage for specific URL
-    procedure UnregisterCustomOptions(const URL: RawUTF8); overload;
+    procedure UnregisterCustomOptions(const URLPath: RawUTF8); overload;
 
     /// Removes custom options usage for specific URLs
-    procedure UnregisterCustomOptions(const URLs: TRawUTF8DynArray); overload;
+    procedure UnregisterCustomOptions(const URLPaths: TRawUTF8DynArray); overload;
 
     /// See TBoilerplateOptions
     property Options: TBoilerplateOptions read FOptions write FOptions;
@@ -977,7 +981,7 @@ begin
     Pointer(Exts), High(Exts), Pointer(Ext)) = -1;
 end;
 
-function TBoilerplateHTTPServer.FindCustomOptions(const URL: RawUTF8;
+function TBoilerplateHTTPServer.FindCustomOptions(const URLPath: RawUTF8;
   const Default: TBoilerplateOptions): TBoilerplateOptions;
 var
   Index: Integer;
@@ -996,14 +1000,14 @@ var
   end;
 
 begin
-  Index := FCustomOptions.Find(URL);
+  Index := FCustomOptions.Find(URLPath);
   if Index >= 0 then
   begin
     Result := StrToOptions(FCustomOptions.List[Index].Value);
     Exit;
   end;
 
-  Index := FindPrefix(UpperCase(URL));
+  Index := FindPrefix(UpperCase(URLPath));
   if Index >= 0 then
   begin
     Result := StrToOptions(FCustomOptionPrefixes.List[Index].Value);
@@ -1205,7 +1209,7 @@ begin
   CreateGZippedAssets;
 end;
 
-procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URL: RawUTF8;
+procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URLPath: RawUTF8;
   CustomOptions: TBoilerplateOptions);
 
   function GetOptionsValue: RawUTF8;
@@ -1215,20 +1219,20 @@ procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URL: RawUTF8;
   end;
 
 begin
-  if Copy(URL, Length(URL), 1) = '*' then
+  if Copy(URLPath, Length(URLPath), 1) = '*' then
     FCustomOptionPrefixes.Add(
-      UpperCase(Copy(URL, 1, Length(URL) - 1)), GetOptionsValue)
+      UpperCase(Copy(URLPath, 1, Length(URLPath) - 1)), GetOptionsValue)
   else
-    FCustomOptions.Add(URL, GetOptionsValue);
+    FCustomOptions.Add(URLPath, GetOptionsValue);
 end;
 
 procedure TBoilerplateHTTPServer.RegisterCustomOptions(
-  const URLs: TRawUTF8DynArray; CustomOptions: TBoilerplateOptions);
+  const URLParts: TRawUTF8DynArray; CustomOptions: TBoilerplateOptions);
 var
   Index: Integer;
 begin
-  for Index := Low(URLs) to High(URLs) do
-    RegisterCustomOptions(URLs[Index], CustomOptions);
+  for Index := Low(URLParts) to High(URLParts) do
+    RegisterCustomOptions(URLParts[Index], CustomOptions);
 end;
 
 function TBoilerplateHTTPServer.Request(Context: THttpServerRequest): Cardinal;
@@ -1742,20 +1746,20 @@ begin
 end;
 
 procedure TBoilerplateHTTPServer.UnregisterCustomOptions(
-  const URLs: TRawUTF8DynArray);
+  const URLPaths: TRawUTF8DynArray);
 var
   Index: Integer;
 begin
-  for Index := Low(URLs) to High(URLs) do
-    UnregisterCustomOptions(URLs[Index]);
+  for Index := Low(URLPaths) to High(URLPaths) do
+    UnregisterCustomOptions(URLPaths[Index]);
 end;
 
-procedure TBoilerplateHTTPServer.UnregisterCustomOptions(const URL: RawUTF8);
+procedure TBoilerplateHTTPServer.UnregisterCustomOptions(const URLPath: RawUTF8);
 begin
-  if Copy(URL, Length(URL), 1) = '*' then
-    FCustomOptionPrefixes.Delete(UpperCase(Copy(URL, 1, Length(URL) - 1)))
+  if Copy(URLPath, Length(URLPath), 1) = '*' then
+    FCustomOptionPrefixes.Delete(UpperCase(Copy(URLPath, 1, Length(URLPath) - 1)))
   else
-    FCustomOptions.Delete(URL);
+    FCustomOptions.Delete(URLPath);
 end;
 
 procedure TBoilerplateHTTPServer.SaveStaticAsset(

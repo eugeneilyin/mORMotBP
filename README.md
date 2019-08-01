@@ -129,7 +129,7 @@ begin
 end;
 ```
 
-### Custom options
+## Custom options
 
 With `RegisterCustomOptions` method you can tweak different options for different HTTP paths.
 For example, you can disable cache usage for you API JSON calls or some special pages like this:

@@ -103,7 +103,7 @@ For example you can compress and pack all you static assets into `Assets.res` an
   * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
   * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
   * `"..\Tools\assetslz" -E "$(PROJECTDIR)\Views" "$(PROJECTDIR)\views.tmp"`
-  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata VIEWS "$(PROJECTDIR)\views.tmp"`
+  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Views.res" rcdata VIEWS "$(PROJECTDIR)\views.tmp"`
 
 The `-E` option for views means skip any compression because we needn't to compress mustache views.
 Now you can embed both resources files into executable.

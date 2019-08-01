@@ -164,7 +164,7 @@ Feel free to contact me at **@gmail.com**: **eugene.ilyin**
 [dist]: /Dist
 [security-headers]: https://securityheaders.com
 [kiran-kurapaty]: https://kurapaty.wordpress.com/about-2
-[build-events-readme]: /BuildEvents/README
+[build-events-readme]: /Tools/BuildEvents/README
 [tests]: /Tests/BoilerplateTests.pas
 [license]: /License.txt
 [semver]: http://semver.org

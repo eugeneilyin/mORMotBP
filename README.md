@@ -2,7 +2,6 @@
 
 <img src="/Tests/Assets/img/marmot.jpg" alt="mORMotBP" style="max-width:100%;">
 <h1>mORMotBP</h1>
-<hr>
 <h3>Boilerplate HTTP Server for Synopse mORMot Framework</h3>
 </div>
 

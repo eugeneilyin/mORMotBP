@@ -2,7 +2,6 @@
 
 <img src="/Tests/Assets/img/marmot.jpg" alt="mORMotBP" style="max-width:100%;">
 <h1>mORMotBP</h1>
-<hr>
 <h3>Boilerplate HTTP Server for Synopse mORMot Framework</h3>
 </div>
 
@@ -16,9 +15,8 @@ This project is embedding of **HTML5 Boilerplate** v.7.2.0 files and settings in
 2. Add the next two **Pre-Build** events to create resource file `Assets.res` with all **h5bp** resources embedded:
   * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
   * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
-> Replace `"..\Tools"` to mORMorBP relative or full directory location.<br>
-> Also you can add Tools directory to your **PATH** environment veriable and use `assetslz` and `resedit` commands directly
-3. Add `mORMotBP` to your library path or add `BoilerplateAssets.pas` and `BoilerplateHTTPServer.pas` files into your project
+> Replace `"..\Tools"` to mORMorBP relative or full directory location. Also you can add Tools directory to your **PATH** environment veriable and use `assetslz` and `resedit` commands directly.
+3. Add `mORMotBP` to your library path or add `BoilerplateAssets.pas`, `BoilerplateHTTPServer.pas` files to the project
 4. Replace `TSQLHttpServer` instance creation with `TBoilerplateHTTPServer`
 5. Load assets to server instance by calling `YourHTTPServerInstance.LoadFromResource('Assets');`
 
@@ -105,7 +103,7 @@ For example you can compress and pack all you static assets into `Assets.res` an
   * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
   * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
   * `"..\Tools\assetslz" -E "$(PROJECTDIR)\Views" "$(PROJECTDIR)\views.tmp"`
-  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata VIEWS "$(PROJECTDIR)\views.tmp"`
+  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Views.res" rcdata VIEWS "$(PROJECTDIR)\views.tmp"`
 
 The `-E` option for views means skip any compression because we needn't to compress mustache views.
 Now you can embed both resources files into executable.
@@ -166,7 +164,7 @@ Feel free to contact me at **@gmail.com**: **eugene.ilyin**
 [dist]: /Dist
 [security-headers]: https://securityheaders.com
 [kiran-kurapaty]: https://kurapaty.wordpress.com/about-2
-[build-events-readme]: /BuildEvents/README
+[build-events-readme]: /Tools/BuildEvents/README
 [tests]: /Tests/BoilerplateTests.pas
 [license]: /License.txt
 [semver]: http://semver.org

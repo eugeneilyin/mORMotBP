@@ -1,36 +1,55 @@
 {===============================================================================
 
 WARNING!
-Before running the tests embed required Boilerplate Assets into application
+Before running the tests you must build Assets.res file
 
-To do this add the next three events to "Pre-Build Events" project options:
+To do this add the next two events to the "Pre-build events" project options:
 
-Project / Options / BuildEvents / Pre-Build Events
+"$(PROJECTDIR)\..\Tools\assetslz" -GZ1 -B1 "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"
+"$(PROJECTDIR)\..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"
 
-..\Tools\assetslz.exe Assets Assets.synlz
-..\Tools\resedit.exe $(INPUTNAME).res rcdata ASSETS Assets.synlz
-DEL Assets.synlz
+For Delphi 2007 IDE and above:
+
+  Project / Options / Build Events / Pre-build events / Commands
+
+    (if you don't see the "Build Events" section: save, close and reopen
+    the project. This is known issue on old IDEs when .dproj missed)
+
+For Delphi 6/7/2005/2006 IDE:
+
+  Component / Install Packages / Add
+
+    Tools\BuildEvents\BuildEventsD6.bpl for Delphi 6
+    Tools\BuildEvents\BuildEventsD7.bpl for Delphi 7
+    Tools\BuildEvents\BuildEventsD2005.bpl for Delphi 2005
+    Tools\BuildEvents\BuildEventsD2006.bpl for Delphi 2006
+
+  Project / Build Events / Pre-build events
+
+For Free Pascal Lazarus IDE (when this file opened):
+
+  Run / Build File
 
 ===============================================================================}
+
+{%BuildCommand pre-build.sh $ProjPath()}
 
 program mORMotBPTests;
 
 {$APPTYPE CONSOLE}
 
-{$R *.res}
-
-{$I SynDprUses.inc} // Get rid of W1029 annoing warnings
+{$R Assets.res}
 
 uses
-  BoilerplateTests,
-  BoilerplateAssets in '..\BoilerplateAssets.pas',
-  BoilerplateHTTPServer in '..\BoilerplateHTTPServer.pas';
+  {$I SynDprUses.inc} // will enable FastMM4 prior to Delphi 2006, and enable FPC on linux
+  BoilerplateAssets in '../BoilerplateAssets.pas',
+  BoilerplateHTTPServer in '../BoilerplateHTTPServer.pas',
+  BoilerplateTests in 'BoilerplateTests.pas';
 
 begin
   with TBoilerplateFeatures.Create do
   try
     RunAsConsole;
-    CleanUp;
   finally
     Free;
   end;

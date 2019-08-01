@@ -1,30 +1,50 @@
 {===============================================================================
 
 WARNING!
-Before running the demo embed required Boilerplate Assets into application
+Before running the tests you must build Assets.res file
 
-To do this add the next three events to "Pre-Build Events" project options:
+To do this add the next two events to the "Pre-build events" project options:
 
-Project / Options / BuildEvents / Pre-Build Events
+"$(PROJECTDIR)\..\Tools\assetslz" -GZ1 -B1 "$(PROJECTDIR)\..\Assets" "$(PROJECTDIR)\assets.tmp"
+"$(PROJECTDIR)\..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"
 
-..\Tools\assetslz.exe ..\Assets Assets.synlz
-..\Tools\resedit.exe $(INPUTNAME).res rcdata ASSETS Assets.synlz
-DEL Assets.synlz
+For Delphi 2007 IDE and above:
+
+  Project / Options / Build Events / Pre-build events / Commands
+
+    (if you don't see the "Build Events" section: save, close and reopen
+    the project. This is known issue on old IDEs when .dproj missed)
+
+For Delphi 6/7/2005/2006 IDE:
+
+  Component / Install Packages / Add
+
+    Tools\BuildEvents\BuildEventsD6.bpl for Delphi 6
+    Tools\BuildEvents\BuildEventsD7.bpl for Delphi 7
+    Tools\BuildEvents\BuildEventsD2005.bpl for Delphi 2005
+    Tools\BuildEvents\BuildEventsD2006.bpl for Delphi 2006
+
+  Project / Build Events / Pre-build events
+
+For Free Pascal Lazarus IDE (when this file opened):
+
+  Run / Build File
 
 ===============================================================================}
+
+{%BuildCommand pre-build.sh $ProjPath()}
 
 program mORMotBPDemo;
 
 {$APPTYPE CONSOLE}
 
-{$R *.res}
-
-{$I SynDprUses.inc} // Get rid of W1029 annoing warnings
+{$R Assets.res}
 
 uses
+  {$I SynDprUses.inc} // will enable FastMM4 prior to Delphi 2006, and enable FPC on linux
   SynCommons,
   mORMot,
-  mORMotHTTPServer,
+  mORMotHttpServer,
   BoilerplateAssets in '..\BoilerplateAssets.pas',
   BoilerplateHTTPServer in '..\BoilerplateHTTPServer.pas';
 
@@ -32,24 +52,22 @@ var
   Model: TSQLModel;
   Server: TSQLRestServer;
   HTTPServer: TBoilerplateHTTPServer;
-
+  AutoModel, AutoServer, AutoHTTPServer: IAutoFree;
 begin
-  TAutoFree.One(Model, TSQLModel.Create([]));
-  TAutoFree.One(Server, TSQLRestServerFullMemory.Create(Model));
-  TAutoFree.One(HTTPServer, TBoilerplateHTTPServer.Create(
-    '8092', Server, '+', useHttpApiRegisteringURI, 32, secNone, '/'));
+  AutoModel := TAutoFree.One(Model, TSQLModel.Create([]));
+  AutoServer :=TAutoFree.One(Server, TSQLRestServerFullMemory.Create(Model));
+  AutoHTTPServer := TAutoFree.One(HTTPServer, TBoilerplateHTTPServer.Create(
+    '8092', Server, '+', HTTP_DEFAULT_MODE, 32, secNone, '/'));
 
-  HTTPServer.LoadFromResource('Assets');
+  HTTPServer.LoadFromResource('ASSETS');
+  // Uncomment the next line to use low-level HTTP.sys file transferring
+  // HTTPServer.StaticRoot := 'static';
 
-/// Use the next two lines to delegate static assets transfer with low-level API
-//  HTTPServer.Options := HTTPServer.Options + [bpoEnableGZipByMIMETypes];
-//  HTTPServer.StaticRoot := 'Temp';
-
-  WriteLn('"mORMot Boilerplate HTTP Server" launched on port 8092 using ' +
-    HTTPServer.HttpServer.ClassName + #10#13 +
-    #10#13 +
-    'You can check http://localhost:8092 for HTTP responces analysis' + #10#13 +
-    #10#13 +
-    'Press [Enter] to close the server.'#10#13);
+  Writeln('mORMot Boilerplate HTTP Server launched on port 8092');
+  Writeln('Using ' + HTTPServer.HttpServer.ClassName);
+  Writeln('');
+  Writeln('You can check it on http://localhost:8092');
+  Writeln('');
+  Writeln('Press [Enter] to close the server.');
   ReadLn;
 end.

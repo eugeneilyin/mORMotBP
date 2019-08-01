@@ -18,21 +18,22 @@ type
     procedure DelegateForbiddenTo404;
     procedure DelegateNotFoundTo404;
     procedure SetXUACompatible;
-    procedure SetP3P;
     procedure ForceMIMEType;
     procedure ForceTextUTF8Charset;
     procedure ForceUTF8Charset;
     procedure ForceHTTPS;
+    procedure ForceHTTPSExceptLetsEncrypt;
     procedure SupportWWWRewrite;
     procedure SetXFrameOptions;
     procedure SupportContentSecurityPolicy;
     procedure DelegateBlocked;
-    procedure SupportStrictSSL;
+    procedure SupportStrictSSLOverHTTP;
+    procedure SupportStrictSSLOverHTTPS;
     procedure PreventMIMESniffing;
     procedure EnableXSSFilter;
+    procedure EnableReferrerPolicy;
     procedure DeleteXPoweredBy;
     procedure FixMangledAcceptEncoding;
-    procedure SupportGZipByMIMEType;
     procedure ForceGZipHeader;
     procedure SetCacheNoTransform;
     procedure SetCachePublic;
@@ -41,26 +42,30 @@ type
     procedure SetExpires;
     procedure SetCacheMaxAge;
     procedure EnableCacheBusting;
+    procedure EnableCacheBustingBeforeExt;
     procedure SupportStaticRoot;
     procedure DelegateRootToIndex;
     procedure DeleteServerInternalState;
     procedure DelegateIndexToInheritedDefault;
+    procedure DelegateIndexToInheritedDefaultOverSSL;
     procedure Delegate404ToInherited_404;
     procedure RegisterCustomOptions;
     procedure UnregisterCustomOptions;
     procedure SetVaryAcceptEncoding;
     procedure RedirectInInherited_404;
+    procedure UpdateStaticAsset;
   end;
 
   TBoilerplateFeatures = class(TSynTests)
     procedure Scenarios;
   end;
 
-procedure CleanUp;
-
 implementation
 
 uses
+  {$IFDEF MSWINDOWS}
+  Windows,
+  {$ENDIF}
   SysUtils,
   SynCommons,
   SynCrtSock,
@@ -70,11 +75,33 @@ uses
   BoilerplateAssets,
   BoilerplateHTTPServer;
 
+{$IFDEF CONDITIONALEXPRESSIONS}  // Delphi 6 or newer
+  {$IFNDEF VER140}
+    {$WARN UNSAFE_CODE OFF} // Delphi for .Net does not exist any more!
+    {$WARN UNSAFE_TYPE OFF}
+    {$WARN UNSAFE_CAST OFF}
+  {$ENDIF}
+{$ENDIF}
+
+// The time constants were introduced in Delphi 2009 and
+// missed in Delphi 5/6/7/2005/2006/2007, and FPC
+{$IF DEFINED(FPC) OR (CompilerVersion < 20)}
+const
+  HoursPerDay = 24;
+  MinsPerHour = 60;
+  SecsPerMin  = 60;
+  MinsPerDay  = HoursPerDay * MinsPerHour;
+  SecsPerDay  = MinsPerDay * SecsPerMin;
+  SecsPerHour = SecsPerMin * MinsPerHour;
+{$IFEND}
+
 type
+
+{ THttpServerRequestStub }
 
   IBoilerplateApplication = interface(IMVCApplication)
     ['{79968060-F121-46B9-BA5C-C4740B4445D6}']
-    procedure _404(out Scope: Variant);
+    procedure _404(const Dummy: Integer; out Scope: Variant);
   end;
 
   THttpServerRequestStub = class(THttpServerRequest)
@@ -89,10 +116,13 @@ type
     property InContentType: SockString read FInContentType;
     property OutContent: SockString read FOutContent;
     property OutContentType: SockString read FOutContentType;
-    property OutCustomHeaders: SockString read FOutCustomHeaders write FOutCustomHeaders;
+    property OutCustomHeaders: SockString read FOutCustomHeaders
+      write FOutCustomHeaders;
     property Result: Cardinal read FResult write FResult;
     property UseSSL: boolean read FUseSSL write FUseSSL;
   end;
+
+{ TBoilerplateHTTPServerSteps }
 
   TBoilerplateHTTPServerSteps = class(TBoilerplateHTTPServer)
   private
@@ -102,8 +132,14 @@ type
     FApplication: IBoilerplateApplication;
     FContext: THttpServerRequestStub;
   public
+    function FullFileName(const FileName: string): string;
+    procedure DeleteFile(const FileName: string);
+    procedure RemoveDir(const FileName: string);
+    function GetFileContent(const FileName: TFileName): RawByteString;
+  public
     constructor Create(const TestCase: TSynTestCase;
-      const Auth: Boolean = False; AApplication: IBoilerplateApplication = nil);
+      const Auth: Boolean = False; AApplication: IBoilerplateApplication = nil;
+      AUseSSL: Boolean = False); reintroduce;
     destructor Destroy; override;
     procedure GivenClearServer;
     procedure GivenAssets(const Name: string = 'ASSETS');
@@ -114,9 +150,12 @@ type
     procedure GivenWWWRewrite(const Value: TWWWRewrite = wwwOff);
     procedure GivenContentSecurityPolicy(const Value: RawUTF8);
     procedure GivenStrictSSL(const Value: TStrictSSL);
+    procedure GivenReferrerPolicy(const Value: RawUTF8);
     procedure GivenExpires(const Value: RawUTF8);
-    procedure GivenGZipLevel(const Value: TGZipLevel);
     procedure GivenStaticRoot(const Value: TFileName);
+    procedure GivenStaticFile(const URL: SockString = '');
+    procedure GivenModifiedFile(const FileName: TFileName;
+      const KeepTimeStamp, KeepSize: Boolean);
     procedure WhenRequest(const URL: SockString = '';
       const Host: SockString = ''; const UseSSL: Boolean = False);
     procedure ThenOutHeaderValueIs(const aName, aValue: RawUTF8);
@@ -128,31 +167,58 @@ type
     procedure ThenOutContentIs(const Value: RawByteString);
     procedure ThenOutContentIsStatic(const FileName: TFileName);
     procedure ThenRequestResultIs(const Value: Cardinal);
+    procedure ThenApp404Called;
+    procedure ThenFileTimeStampAndSizeIsEqualToAsset(const FileName: TFileName;
+      const Path: RawUTF8);
+    procedure ThenFileContentIsEqualToAsset(const FileName: TFileName;
+      const Path: RawUTF8);
+    procedure ThenFileContentIsNotEqualToAsset(const FileName: TFileName;
+      const Path: RawUTF8);
   end;
+
+{ TBoilerplateApplication }
 
   TBoilerplateApplication = class(TMVCApplication, IBoilerplateApplication)
   public
-    procedure Start(Server: TSQLRestServer); reintroduce;
+    procedure Start(Server: TSQLRestServer;
+      const ViewsFolder: TFileName); reintroduce;
   published
     procedure Error(var Msg: RawUTF8; var Scope: Variant);
     procedure Default(var Scope: Variant);
-    procedure _404(out Scope: Variant);
+    procedure _404(const Dummy: Integer; out Scope: Variant);
   end;
 
-  TRedirectApplication = class(TMVCApplication, IBoilerplateApplication)
+{ T404Application }
+
+  T404Application = class(TMVCApplication, IBoilerplateApplication)
   public
-    procedure Start(Server: TSQLRestServer); reintroduce;
+    Is404Called: Boolean;
+    procedure Start(Server: TSQLRestServer;
+      const ViewsFolder: TFileName); reintroduce;
   published
     procedure Error(var Msg: RawUTF8; var Scope: Variant);
     procedure Default(var Scope: Variant);
-    procedure _404(out Scope: Variant);
+    procedure _404(const Dummy: Integer; out Scope: Variant);
   end;
+
+function GetMustacheParams(
+  const Folder: TFileName): TMVCViewsMustacheParameters;
+begin
+  Result.Folder := Folder;
+  Result.CSVExtensions := '';
+  Result.FileTimestampMonitorAfterSeconds := 0;
+  Result.ExtensionForNotExistingTemplate := '';
+  Result.Helpers := nil;
+end;
+
+{ TBoilerplateHTTPServerShould }
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOrigin;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -174,22 +240,23 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForFonts;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
-    WhenRequest('/fonts/Roboto-Regular.woff2');
+    WhenRequest('/sample.woff2');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
     ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoAllowCrossOriginFonts]);
-    WhenRequest('/fonts/Roboto-Regular.woff2');
+    WhenRequest('/sample.woff2');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '');
     ThenRequestResultIs(HTTP_SUCCESS);
 
@@ -197,7 +264,7 @@ begin
     GivenAssets;
     GivenOptions([bpoAllowCrossOriginFonts]);
     GivenInHeader('Origin', 'localhost');
-    WhenRequest('/fonts/Roboto-Regular.woff2');
+    WhenRequest('/sample.woff2');
     ThenOutHeaderValueIs('Access-Control-Allow-Origin', '*');
     ThenRequestResultIs(HTTP_SUCCESS);
   end;
@@ -205,9 +272,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForImages;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -236,9 +304,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginTiming;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -259,15 +328,17 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportContentSecurityPolicy;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
     GivenAssets;
     WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Content-Security-Policy', '');
+    ThenOutHeaderValueIs('Content-Security-Policy',
+      DEFAULT_CONTENT_SECURITY_POLICY);
     ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
@@ -293,112 +364,56 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServerShould.SupportGZipByMIMEType;
-var
-  Steps: TBoilerplateHTTPServerSteps;
-  Data: RawByteString;
-  Level: TGZipLevel;
-begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
-  with Steps do
-  begin
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoForceMIMEType]);
-    GivenInHeader('Accept-Encoding', 'gzip');
-    WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoForceMIMEType]);
-    GivenInHeader('Accept-Encoding', 'gzip');
-    WhenRequest('/img/marmot.jpg');
-    ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoForceMIMEType, bpoEnableGZipByMIMETypes]);
-    GivenInHeader('Accept-Encoding', 'gzip');
-    WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoForceMIMEType, bpoEnableGZipByMIMETypes]);
-    GivenInHeader('Accept-Encoding', 'deflate, sdch, br, gzip');
-    WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoForceMIMEType, bpoEnableGZipByMIMETypes]);
-    GivenInHeader('Accept-Encoding', 'gzip');
-    WhenRequest('/img/marmot.jpg');
-    ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    for Level := Low(TGZipLevel) to High(TGZipLevel) do
-    begin
-      GivenClearServer;
-      GivenGZipLevel(Level);
-      GivenAssets;
-      GivenOptions([bpoEnableGZipByMIMETypes]);
-      GivenInHeader('Accept-Encoding', 'gzip');
-      WhenRequest('/index.html');
-      Data := StringFromFile('Assets\index.html');
-      CompressGZip(Data, Integer(Level));
-      ThenOutContentIs(Data);
-      ThenRequestResultIs(HTTP_SUCCESS);
-    end;
-  end;
-end;
-
+{$IF DEFINED(VER170) OR DEFINED(VER180)}{$HINTS OFF}{$IFEND}
 procedure TBoilerplateHTTPServerShould.SupportStaticRoot;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
-  StaticData, RequiredData: RawByteString;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
     GivenAssets;
     GivenStaticRoot('static');
     WhenRequest('/index.html');
-    ThenOutContentIsStaticFile('static\cache.plain\index.html',
+    ThenOutContentIsStaticFile('static\identity\index.html',
       'Assets\index.html');
-    DeleteFile('static\cache.plain\index.html');
-    RemoveDir('static\cache.plain');
+    DeleteFile('static\identity\index.html');
+    RemoveDir('static\identity');
     RemoveDir('static');
 
     GivenClearServer;
-    GivenGZipLevel(gz9);
     GivenAssets;
-    GivenOptions([bpoEnableGZipByMIMETypes]);
     GivenStaticRoot('static');
     GivenInHeader('Accept-Encoding', 'gzip');
     WhenRequest('/index.html');
-    ThenOutContentIsStatic('static\cache.gz\index.html.9.gz');
-    StaticData := StringFromFile('static\cache.gz\index.html.9.gz');
-    RequiredData := StringFromFile('Assets\index.html');
-    CompressGZip(RequiredData, 9);
-    Check(StaticData = RequiredData);
-    DeleteFile('static\cache.gz\index.html.9.gz');
-    RemoveDir('static\cache.gz');
+    ThenOutContentIsStaticFile('static\gzip\index.html.gz',
+      'Assets\index.html.gz');
+    DeleteFile('static\gzip\index.html.gz');
+    RemoveDir('static\gzip');
+    RemoveDir('static');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStaticRoot('static');
+    GivenInHeader('Accept-Encoding', 'br');
+    WhenRequest('/index.html');
+    ThenOutContentIsStaticFile('static\brotli\index.html.br',
+      'Assets\index.html.br');
+    DeleteFile('static\brotli\index.html.br');
+    RemoveDir('static\brotli');
     RemoveDir('static');
   end;
 end;
+{$IF DEFINED(VER170) OR DEFINED(VER180)}{$HINTS ON}{$IFEND}
 
-procedure TBoilerplateHTTPServerShould.SupportStrictSSL;
+procedure TBoilerplateHTTPServerShould.SupportStrictSSLOverHTTP;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -428,11 +443,47 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServerShould.SupportWWWRewrite;
+procedure TBoilerplateHTTPServerShould.SupportStrictSSLOverHTTPS;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLOff);
+    WhenRequest('/index.html', '', True);
+    ThenOutHeaderValueIs('Strict-Transport-Security', '');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLOn);
+    WhenRequest('/index.html', '', True);
+    ThenOutHeaderValueIs('Strict-Transport-Security', 'max-age=31536000');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLIncludeSubDomains);
+    WhenRequest('/index.html', '', True);
+    ThenOutHeaderValueIs('Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SupportWWWRewrite;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -485,9 +536,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.UnregisterCustomOptions;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -503,7 +555,7 @@ begin
     GivenOptions([bpoSetCacheNoTransform]);
     RegisterCustomOptions('/index.html', [bpoSetCacheNoCache]);
     RegisterCustomOptions('/404.html', [bpoSetCacheNoCache]);
-    UnregisterCustomOptions(['/index.html', '/404.html']);
+    UnregisterCustomOptions(TRawUTF8DynArrayFrom(['/index.html', '/404.html']));
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-transform');
 
@@ -517,11 +569,64 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServerShould.CallInherited;
+procedure TBoilerplateHTTPServerShould.UpdateStaticAsset;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenStaticRoot('static');
+    GivenStaticFile('/index.html');
+    GivenModifiedFile('static\identity\index.html', True, True);
+    WhenRequest('/index.html');
+    ThenFileTimeStampAndSizeIsEqualToAsset(
+      'static\identity\index.html', '/index.html');
+    ThenFileContentIsNotEqualToAsset(
+      'static\identity\index.html', '/index.html');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStaticRoot('static');
+    GivenStaticFile('/index.html');
+    GivenModifiedFile('static\identity\index.html', False, True);
+    WhenRequest('/index.html');
+    ThenFileContentIsEqualToAsset(
+      'static\identity\index.html', '/index.html');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStaticRoot('static');
+    GivenStaticFile('/index.html');
+    GivenModifiedFile('static\identity\index.html', True, False);
+    WhenRequest('/index.html');
+    ThenFileContentIsEqualToAsset(
+      'static\identity\index.html', '/index.html');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStaticRoot('static');
+    GivenStaticFile('/index.html');
+    GivenModifiedFile('static\identity\index.html', False, False);
+    WhenRequest('/index.html');
+    ThenFileContentIsEqualToAsset(
+      'static\identity\index.html', '/index.html');
+
+    DeleteFile('static\identity\index.html');
+    RemoveDir('static\identity');
+    RemoveDir('static');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.CallInherited;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -532,9 +637,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.Delegate404ToInherited_404;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -550,16 +656,17 @@ begin
     GivenInHeader('Host', 'localhost');
     GivenOptions([bpoDelegateBadRequestTo404, bpoDelegate404ToInherited_404]);
     WhenRequest;
-    ThenOutContentIs('404 CONTENT');
+    ThenOutContentIs('404 NOT FOUND');
     ThenRequestResultIs(HTTP_NOTFOUND);
   end;
 end;
 
 procedure TBoilerplateHTTPServerShould.DelegateBadRequestTo404;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -578,9 +685,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateBlocked;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -596,14 +704,43 @@ begin
     WhenRequest('/sample.conf');
     ThenOutContentEqualsFile('Assets\404.html');
     ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html~');
+    ThenOutContentEqualsFile('Assets\index.html~');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateBlocked]);
+    WhenRequest('/index.html~');
+    ThenOutContentEqualsFile('Assets\404.html');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html#');
+    ThenOutContentEqualsFile('Assets\index.html#');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateBlocked]);
+    WhenRequest('/index.html#');
+    ThenOutContentEqualsFile('Assets\404.html');
+    ThenRequestResultIs(HTTP_NOTFOUND);
   end;
 end;
 
 procedure TBoilerplateHTTPServerShould.DelegateForbiddenTo404;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, True));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, True));
   with Steps do
   begin
     GivenClearServer;
@@ -622,9 +759,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateNotFoundTo404;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -643,9 +781,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateRootToIndex;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -680,9 +819,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DeleteServerInternalState;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -701,9 +841,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DeleteXPoweredBy;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -726,9 +867,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheBusting;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -753,16 +895,40 @@ begin
   end;
 end;
 
+procedure TBoilerplateHTTPServerShould.EnableCacheBustingBeforeExt;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.xyz123.html');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableCacheBustingBeforeExt]);
+    WhenRequest('/index.xyz123.html');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+  end;
+end;
+
 procedure TBoilerplateHTTPServerShould.EnableCacheByETag;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
   Hash: RawUTF8;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     Hash := FormatUTF8('"%"',
-      [crc32cUTF8ToHex(StringFromFile('Assets\index.html'))]);
+      [crc32cUTF8ToHex(GetFileContent('Assets\index.html'))]);
 
     GivenClearServer;
     GivenAssets;
@@ -802,17 +968,17 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheByLastModified;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
-  Assets: TAssets;
   LastModified: RawUTF8;
 begin
-  Assets.Init;
-  Assets.Add('Assets', 'Assets\index.html');
-  LastModified := DateTimeToHTTPDate(Assets.Assets[0].Modified);
-
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
+    GivenClearServer;
+    GivenAssets;
+    LastModified := DateTimeToHTTPDate(FAssets.Find('/index.html').Modified);
+
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
@@ -849,11 +1015,66 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServerShould.EnableXSSFilter;
+procedure TBoilerplateHTTPServerShould.EnableReferrerPolicy;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Referrer-Policy', '');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Referrer-Policy', '');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Referrer-Policy', 'no-referrer-when-downgrade');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Referrer-Policy', '');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    GivenReferrerPolicy('custom-referrer-policy');
+    WhenRequest('/index.html');
+    ThenOutHeaderValueIs('Referrer-Policy', 'custom-referrer-policy');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    GivenReferrerPolicy('custom-referrer-policy');
+    WhenRequest('/img/marmot.jpg');
+    ThenOutHeaderValueIs('Referrer-Policy', '');
+    ThenRequestResultIs(HTTP_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.EnableXSSFilter;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -888,9 +1109,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.FixMangledAcceptEncoding;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -902,7 +1124,6 @@ begin
 
     GivenClearServer;
     GivenAssets;
-    GivenOptions([bpoEnableGZipByMIMETypes]);
     GivenInHeader('Accept-Encoding', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
@@ -910,23 +1131,7 @@ begin
 
     GivenClearServer;
     GivenAssets;
-    GivenOptions([bpoEnableGZipByMIMETypes]);
-    GivenInHeader('Accept-Encoding', 'gzip, deflate, sdch');
-    WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoEnableGZipByMIMETypes]);
-    GivenInHeader('Accept-EncodXng', 'gzip');
-    WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Content-Encoding', '');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoEnableGZipByMIMETypes, bpoFixMangledAcceptEncoding]);
+    GivenOptions([bpoFixMangledAcceptEncoding]);
     GivenInHeader('Accept-EncodXng', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
@@ -934,7 +1139,7 @@ begin
 
     GivenClearServer;
     GivenAssets;
-    GivenOptions([bpoEnableGZipByMIMETypes, bpoFixMangledAcceptEncoding]);
+    GivenOptions([bpoFixMangledAcceptEncoding]);
     GivenInHeader('X-cept-Encoding', 'gzip');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
@@ -944,33 +1149,35 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceGZipHeader;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
     GivenAssets;
     GivenOptions([]);
-    WhenRequest('/img/sample.svgz');
+    WhenRequest('/sample.svgz');
     ThenOutHeaderValueIs('Content-Encoding', '');
     ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoForceGZipHeader]);
-    WhenRequest('/img/sample.svgz');
+    WhenRequest('/sample.svgz');
     ThenOutHeaderValueIs('Content-Encoding', 'gzip');
-    ThenOutContentEqualsFile('Assets\img\sample.svgz');
+    ThenOutContentEqualsFile('Assets\sample.svgz');
     ThenRequestResultIs(HTTP_SUCCESS);
   end;
 end;
 
 procedure TBoilerplateHTTPServerShould.ForceHTTPS;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -989,18 +1196,92 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServerShould.DelegateIndexToInheritedDefault;
+procedure TBoilerplateHTTPServerShould.ForceHTTPSExceptLetsEncrypt;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenOptions([bpoForceHTTPS]);
+    GivenAssets;
+    WhenRequest('/.well-known/acme-challenge/sample.txt', 'localhost');
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location',
+      'https://localhost/.well-known/acme-challenge/sample.txt');
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceHTTPS]);
+    WhenRequest('/.well-known/cpanel-dcv/sample.txt', 'localhost');
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location',
+      'https://localhost/.well-known/cpanel-dcv/sample.txt');
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceHTTPS]);
+    WhenRequest('/.well-known/pki-validation/sample.txt', 'localhost');
+    ThenOutContentIsEmpty;
+    ThenOutHeaderValueIs('Location',
+      'https://localhost/.well-known/pki-validation/sample.txt');
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceHTTPS, bpoForceHTTPSExceptLetsEncrypt]);
+    WhenRequest('/.well-known/acme-challenge/sample.txt');
+    {$IFDEF LINUX}
+    // .well-known directory is hidden on linux and was not included into Assets
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    {$ELSE}
+    ThenOutContentIs('acme challenge sample');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    {$ENDIF}
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceHTTPS, bpoForceHTTPSExceptLetsEncrypt]);
+    WhenRequest('/.well-known/cpanel-dcv/sample.txt');
+    {$IFDEF LINUX}
+    // .well-known directory is hidden on linux and was not included into Assets
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    {$ELSE}
+    ThenOutContentIs('cpanel dcv sample');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    {$ENDIF}
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoForceHTTPS, bpoForceHTTPSExceptLetsEncrypt]);
+    WhenRequest('/.well-known/pki-validation/sample.txt');
+    {$IFDEF LINUX}
+    // .well-known directory is hidden on linux and was not included into Assets
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    {$ELSE}
+    ThenOutContentIs('pki validation sample');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    {$ENDIF}
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateIndexToInheritedDefault;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
     GivenAssets;
     GivenInHeader('Host', 'localhost');
     GivenOptions([bpoDelegateRootToIndex]);
-    WhenRequest('');
+    WhenRequest;
     ThenOutContentEqualsFile('Assets\index.html');
     ThenRequestResultIs(HTTP_SUCCESS);
 
@@ -1014,11 +1295,31 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServerShould.ForceMIMEType;
+procedure TBoilerplateHTTPServerShould.DelegateIndexToInheritedDefaultOverSSL;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps,
+    TBoilerplateHTTPServerSteps.Create(Self, False, nil, True));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenInHeader('Host', 'localhost');
+    GivenOptions([bpoDelegateRootToIndex, bpoDelegateIndexToInheritedDefault]);
+    WhenRequest('', '', True);
+    ThenOutContentIs('DEFAULT CONTENT');
+    ThenRequestResultIs(HTTP_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.ForceMIMEType;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1029,20 +1330,150 @@ begin
     GivenClearServer;
     GivenOptions([bpoForceMIMEType]);
     WhenRequest('/sample.geojson');
-    ThenOutContentTypeIs('application/vnd.geo+json');
+    ThenOutContentTypeIs('application/geo+json');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.rdf');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.rdf');
+    ThenOutContentTypeIs('application/rdf+xml');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.xml');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.xml');
+    ThenOutContentTypeIs('application/xml');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.mjs');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.mjs');
+    ThenOutContentTypeIs('text/javascript');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.js');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.js');
+    ThenOutContentTypeIs('text/javascript');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.wasm');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.wasm');
+    ThenOutContentTypeIs('application/wasm');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.woff');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.woff');
+    ThenOutContentTypeIs('font/woff');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.woff2');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.woff2');
+    ThenOutContentTypeIs('font/woff2');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.ttf');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.ttf');
+    ThenOutContentTypeIs('font/ttf');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.ttc');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.ttc');
+    ThenOutContentTypeIs('font/collection');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.otf');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.otf');
+    ThenOutContentTypeIs('font/otf');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.ics');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.ics');
+    ThenOutContentTypeIs('text/calendar');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.md');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.md');
+    ThenOutContentTypeIs('text/markdown');
+
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('/sample.markdown');
+    ThenOutContentTypeIs('');
+
+    GivenClearServer;
+    GivenOptions([bpoForceMIMEType]);
+    WhenRequest('/sample.markdown');
+    ThenOutContentTypeIs('text/markdown');
   end;
 end;
 
 
 procedure TBoilerplateHTTPServerShould.LoadAndReturnAssets;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
-    GivenAssets;
     GivenAssets;
     WhenRequest('/img/marmot.jpg');
     ThenOutContentEqualsFile('Assets\img\marmot.jpg');
@@ -1052,9 +1483,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.PreventMIMESniffing;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1077,25 +1509,27 @@ end;
 
 procedure TBoilerplateHTTPServerShould.RedirectInInherited_404;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, False,
-    TRedirectApplication.Create));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, False,
+    T404Application.Create));
   with Steps do
   begin
     GivenClearServer;
     GivenOptions([bpoDelegateBadRequestTo404, bpoDelegate404ToInherited_404]);
     GivenInHeader('Host', 'localhost');
     WhenRequest('123456');
-    ThenRequestResultIs(HTTP_TEMPORARYREDIRECT);
+    ThenApp404Called;
   end;
 end;
 
 procedure TBoilerplateHTTPServerShould.RegisterCustomOptions;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1131,7 +1565,8 @@ begin
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetCacheNoTransform]);
-    RegisterCustomOptions(['/index.html', '/404.html'], [bpoSetCacheNoCache]);
+    RegisterCustomOptions(
+      TRawUTF8DynArrayFrom(['/index.html', '/404.html']), [bpoSetCacheNoCache]);
     WhenRequest('/404.html');
     ThenOutHeaderValueIs('Cache-Control', 'no-cache');
     ThenRequestResultIs(HTTP_SUCCESS);
@@ -1148,9 +1583,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceTextUTF8Charset;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1177,28 +1613,30 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceUTF8Charset;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
     GivenOptions([bpoForceMIMEType]);
-    WhenRequest('/data.rss');
-    ThenOutContentTypeIs('application/rss+xml');
+    WhenRequest('/data.webmanifest');
+    ThenOutContentTypeIs('application/manifest+json');
 
     GivenClearServer;
     GivenOptions([bpoForceMIMEType, bpoForceUTF8Charset]);
-    WhenRequest('/data.rss');
-    ThenOutContentTypeIs('application/rss+xml; charset=UTF-8');
+    WhenRequest('/data.webmanifest');
+    ThenOutContentTypeIs('application/manifest+json; charset=UTF-8');
   end;
 end;
 
 procedure TBoilerplateHTTPServerShould.ServeExactCaseURL;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1227,9 +1665,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCacheMaxAge;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1356,9 +1795,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCacheNoTransform;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1379,9 +1819,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCachePublic;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1445,10 +1886,11 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetExpires;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
   LExpires: RawUTF8;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1578,35 +2020,12 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServerShould.SetP3P;
-var
-  Steps: TBoilerplateHTTPServerSteps;
-begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
-  with Steps do
-  begin
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([]);
-    WhenRequest('/index.html');
-    ThenOutHeaderValueIs('P3P', '');
-    ThenRequestResultIs(HTTP_SUCCESS);
-
-    GivenClearServer;
-    GivenAssets;
-    GivenOptions([bpoSetP3P]);
-    WhenRequest('/img/marmot.jpg');
-    ThenOutHeaderValueIs('P3P', 'policyref="/w3c/p3p.xml", CP="IDC ' +
-      'DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"');
-    ThenRequestResultIs(HTTP_SUCCESS);
-  end;
-end;
-
 procedure TBoilerplateHTTPServerShould.SetVaryAcceptEncoding;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1631,9 +2050,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetXFrameOptions;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1668,9 +2088,10 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetXUACompatible;
 var
+  Auto: IAutoFree; // This variable required only under FPC
   Steps: TBoilerplateHTTPServerSteps;
 begin
-  TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
     GivenClearServer;
@@ -1700,10 +2121,20 @@ begin
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('X-UA-Compatible', '');
     ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoSetXUACompatible, bpoDelegateNotFoundTo404]);
+    WhenRequest('/404');
+    ThenOutHeaderValueIs('X-UA-Compatible', 'IE=edge');
+    ThenRequestResultIs(HTTP_NOTFOUND);
   end;
 end;
 
-procedure TBoilerplateHTTPServerSteps.GivenOptions(const AOptions: TBoilerplateOptions);
+{ TBoilerplateHTTPServerSteps }
+
+procedure TBoilerplateHTTPServerSteps.GivenOptions(
+  const AOptions: TBoilerplateOptions);
 begin
   inherited Options := AOptions;
 end;
@@ -1715,15 +2146,27 @@ begin
     FormatUTF8('%: %', [aName, aValue]);
 end;
 
+procedure TBoilerplateHTTPServerSteps.GivenReferrerPolicy(const Value: RawUTF8);
+begin
+  ReferrerPolicy := Value;
+end;
+
 procedure TBoilerplateHTTPServerSteps.GivenServeExactCaseURL(
   const Value: Boolean);
 begin
   RedirectServerRootUriForExactCase := Value;
 end;
 
+procedure TBoilerplateHTTPServerSteps.GivenStaticFile(const URL: SockString);
+begin
+  FContext.URL := URL;
+  FContext.Method := 'GET';
+  FContext.Result := inherited Request(FContext);
+end;
+
 procedure TBoilerplateHTTPServerSteps.GivenStaticRoot(const Value: TFileName);
 begin
-  StaticRoot := Value;
+  StaticRoot := ExtractFilePath(ParamStr(0)) + Value;
 end;
 
 procedure TBoilerplateHTTPServerSteps.GivenStrictSSL(const Value: TStrictSSL);
@@ -1734,6 +2177,12 @@ end;
 procedure TBoilerplateHTTPServerSteps.GivenWWWRewrite(const Value: TWWWRewrite);
 begin
   WWWRewrite := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.RemoveDir(const FileName: string);
+begin
+  SysUtils.RemoveDir(
+    StringReplace(FullFileName(FileName), '\', PathDelim, [rfReplaceAll]));
 end;
 
 procedure TBoilerplateHTTPServerSteps.GivenClearServer;
@@ -1748,14 +2197,42 @@ begin
   ContentSecurityPolicy := Value;
 end;
 
+procedure TBoilerplateHTTPServerSteps.GivenModifiedFile(
+  const FileName: TFileName;
+  const KeepTimeStamp, KeepSize: Boolean);
+const
+  ADD_BYTE: array[Boolean] of Integer = (0, 1);
+var
+  LFileName: string;
+  Modified: TDateTime;
+  Size: Int64;
+begin
+  LFileName := StringReplace(
+    FullFileName(FileName), '\', PathDelim, [rfReplaceAll]);
+  GetFileInfo(LFileName, @Modified, @Size);
+  FileFromString(
+    ToUTF8(StringOfChar(#0, Size + ADD_BYTE[not KeepSize])), LFileName, True);
+  if KeepTimeStamp then
+    SetFileTime(LFileName, Modified)
+  else
+    SetFileTime(LFileName, NowUTC);
+end;
+
 procedure TBoilerplateHTTPServerSteps.GivenExpires(const Value: RawUTF8);
 begin
   Expires := Value;
 end;
 
-procedure TBoilerplateHTTPServerSteps.GivenGZipLevel(const Value: TGZipLevel);
+function TBoilerplateHTTPServerSteps.GetFileContent(
+  const FileName: TFileName): RawByteString;
+var
+  LFileName: string;
 begin
-  GZipLevel := Value;
+  LFileName := StringReplace(
+    FullFileName(FileName), '\', PathDelim, [rfReplaceAll]);
+  FTestCase.CheckUTF8(FileExists(LFileName),
+    'File not found ''%''', [LFileName]);
+  Result := StringFromFile(LFileName);
 end;
 
 procedure TBoilerplateHTTPServerSteps.GivenAssets(const Name: string);
@@ -1764,7 +2241,10 @@ begin
 end;
 
 constructor TBoilerplateHTTPServerSteps.Create(const TestCase: TSynTestCase;
-  const Auth: Boolean; AApplication: IBoilerplateApplication);
+  const Auth: Boolean; AApplication: IBoilerplateApplication; AUseSSL: Boolean);
+const
+  DEFAULT_PORT = {$IFDEF MSWINDOWS} '888' {$ELSE} '8888' {$ENDIF MSWINDOWS};
+  SERVER_SECURITY: array[Boolean] of TSQLHTTPServerSecurity = (secNone, secSSL);
 begin
   FTestCase := TestCase;
   FModel := TSQLModel.Create([]);
@@ -1773,103 +2253,172 @@ begin
   if FApplication = nil then
   begin
     FApplication := TBoilerplateApplication.Create;
-    TBoilerplateApplication(FApplication).Start(FServer);
+    TBoilerplateApplication(ObjectFromInterface(FApplication)).Start(
+      FServer, FullFileName('Views'));
   end else
-    if FApplication is TBoilerplateApplication then
-      TBoilerplateApplication(FApplication).Start(FServer)
-    else if FApplication is TRedirectApplication then
-      TRedirectApplication(FApplication).Start(FServer)
+    if ObjectFromInterface(FApplication).ClassType = TBoilerplateApplication then
+      TBoilerplateApplication(ObjectFromInterface(FApplication)).Start(
+        FServer, FullFileName('Views'))
+    else if ObjectFromInterface(FApplication).ClassType = T404Application then
+      T404Application(ObjectFromInterface(FApplication)).Start(
+        FServer, FullFileName('Views'))
     else
-      TMVCApplication(FApplication).Start(FServer,
-        TypeInfo(IBoilerplateApplication));
+      TMVCApplication(ObjectFromInterface(FApplication)).Start(
+        FServer, TypeInfo(IBoilerplateApplication));
   FContext := THttpServerRequestStub.Create(nil, 0, nil);
-  inherited Create('0', FServer, '+', useHttpSocket, nil, 0);
+  inherited Create(DEFAULT_PORT, FServer, '+', useHttpSocket, nil, 0,
+    SERVER_SECURITY[AUseSSL]);
   DomainHostRedirect('localhost', 'root');
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenRequestResultIs(const Value: Cardinal);
 begin
-  FTestCase.Check(FContext.Result = Value,
-    Format('Request result expected=%d, actual=%d',
-      [Value, FContext.Result]));
+  FTestCase.CheckUTF8(FContext.Result = Value,
+    'Request result expected=%, actual=%', [Value, FContext.Result]);
+end;
+
+procedure TBoilerplateHTTPServerSteps.DeleteFile(const FileName: string);
+begin
+  SysUtils.DeleteFile(
+    StringReplace(FullFileName(FileName), '\', PathDelim, [rfReplaceAll]));
 end;
 
 destructor TBoilerplateHTTPServerSteps.Destroy;
 begin
-  inherited;
+  inherited Destroy;
   FContext.Free;
   FApplication := nil;
   FServer.Free;
   FModel.Free;
 end;
 
-procedure TBoilerplateHTTPServerSteps.ThenOutContentEqualsFile(const FileName: TFileName);
+function TBoilerplateHTTPServerSteps.FullFileName(
+  const FileName: string): string;
 begin
-  FTestCase.Check(FileExists(FileName),
-    Format('File doesn''t not exists ''%s''', [FileName]));
-  FTestCase.Check(FContext.OutContent = StringFromFile(FileName),
-    Format('File content mismatch ''%s''', [FileName]));
+  Result := ExtractFilePath(ParamStr(0)) + FileName;
 end;
 
-procedure TBoilerplateHTTPServerSteps.GivenInHeader(const aName, aValue: RawUTF8);
+procedure TBoilerplateHTTPServerSteps.ThenApp404Called;
+begin
+  FTestCase.Check(
+    T404Application(ObjectFromInterface(FApplication)).Is404Called,
+    'App404 not called');
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenFileContentIsEqualToAsset(
+  const FileName: TFileName; const Path: RawUTF8);
+var
+  Asset: PAsset;
+begin
+  Asset := FAssets.Find(Path);
+  FTestCase.CheckUTF8(Asset <> nil, 'Asset not found ''%''', [Path]);
+  FTestCase.CheckUTF8(GetFileContent(FileName) = Asset.Content,
+    'Non-equal content between file ''%'' and asset ''%''', [FileName, Path]);
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenFileContentIsNotEqualToAsset(
+  const FileName: TFileName; const Path: RawUTF8);
+var
+  Asset: PAsset;
+begin
+  Asset := FAssets.Find(Path);
+  FTestCase.CheckUTF8(Asset <> nil, 'Asset not found ''%''', [Path]);
+  FTestCase.CheckUTF8(GetFileContent(FileName) <> Asset.Content,
+    'Equal content between file ''%'' and asset ''%''', [FileName, Path]);
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenFileTimeStampAndSizeIsEqualToAsset(
+  const FileName: TFileName; const Path: RawUTF8);
+var
+  Asset: PAsset;
+  Modified: TDateTime;
+  Size: Int64;
+begin
+  Asset := FAssets.Find(Path);
+  FTestCase.CheckUTF8(Asset <> nil, 'Asset not found ''%''', [Path]);
+  FTestCase.CheckUTF8(
+    GetFileInfo(
+      StringReplace(FullFileName(FileName), '\', PathDelim, [rfReplaceAll]),
+        @Modified, @Size),
+    'GetFileInfo failed ''%''', [FileName]);
+  FTestCase.CheckUTF8(Round((Modified - Asset.Modified) * SecsPerDay) = 0,
+    'File modified are not equal to asset file=%, asset=%', [
+      FormatDateTime('YYYY-MM-DD HH:NN:SS.ZZZ', Modified),
+      FormatDateTime('YYYY-MM-DD HH:NN:SS.ZZZ', Asset.Modified)]);
+  FTestCase.CheckUTF8(Size = Length(Asset.Content),
+    'File size are not equal to asset file=%, asset=%',
+      [Size, Length(Asset.Content)]);
+end;
+
+procedure TBoilerplateHTTPServerSteps.ThenOutContentEqualsFile(
+  const FileName: TFileName);
+begin
+  FTestCase.CheckUTF8(FContext.OutContent = GetFileContent(FileName),
+    'File content mismatch ''%'' actual=''%''expected=''%''',
+      [FileName, FContext.OutContent, GetFileContent(FileName)]);
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenInHeader(
+  const aName, aValue: RawUTF8);
 begin
   FContext.InHeaders := FContext.InHeaders +
     FormatUTF8('%: %', [aName, aValue]);
 end;
 
-procedure TBoilerplateHTTPServerSteps.ThenOutHeaderValueIs(const aName, aValue: RawUTF8);
+procedure TBoilerplateHTTPServerSteps.ThenOutHeaderValueIs(
+  const aName, aValue: RawUTF8);
 var
   NameUp: SockString;
   Value: RawUTF8;
 begin
-  NameUp := UpperCase(aName) + ': ';
+  NameUp := SockString(SynCommons.UpperCase(aName) + ': ');
   Value := FindIniNameValue(Pointer(FContext.OutCustomHeaders),
     Pointer(NameUp));
-  FTestCase.Check(Value = aValue, Format(
-    '_Out ''%s'' expected=''%s'', actual=''%s''', [aName, aValue, Value]));
+  FTestCase.CheckUTF8(Value = aValue,
+    'OutHeader ''%'' expected=''%'', actual=''%''', [aName, aValue, Value]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenOutContentIsStaticFile(
   const StaticFileName, FileName: TFileName);
 begin
-  FTestCase.Check(FileExists(FileName),
-    Format('File doesn''t not exists ''%s''', [FileName]));
-  FTestCase.Check(FileExists(StaticFileName),
-    Format('File doesn''t not exists ''%s''', [StaticFileName]));
-  FTestCase.Check(StringFromFile(StaticFileName) = StringFromFile(FileName),
-    Format('File content mismatch ''%s''', [FileName]));
+  FTestCase.CheckUTF8(GetFileContent(StaticFileName) = GetFileContent(FileName),
+    'File content mismatch ''%''', [FileName]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenOutContentIs(
   const Value: RawByteString);
 begin
-  FTestCase.Check(FContext.OutContent = Value, Format(
-    '_OutContentIs expected=''%s'', actual=''%s''',
-      [Value, FContext.OutContent]));
+  FTestCase.CheckUTF8(FContext.OutContent = Value,
+    'OutContent expected=''%'', actual=''%''', [Value, FContext.OutContent]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenOutContentIsEmpty;
 begin
-  FTestCase.Check(FContext.OutContent = '', 'HTTP Responce content is not empty');
+  FTestCase.CheckUTF8(FContext.OutContent = '',
+    'HTTP Response content is not empty ''%''', [FContext.OutContent]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenOutContentIsStatic(
   const FileName: TFileName);
+var
+  LFileName: string;
 begin
-  FTestCase.Check(FContext.OutContentType = HTTP_RESP_STATICFILE, Format(
-    '_OutContentIsStatic expected=''%s'', actual=''%s''',
-      [HTTP_RESP_STATICFILE, FContext.OutContentType]));
-  FTestCase.Check(TFileName(FContext.OutContent) = FileName, Format(
-    '_OutContentIsStatic expected=''%s'', actual=''%s''',
-      [FileName, FContext.OutContent]));
+  FTestCase.CheckUTF8(FContext.OutContentType = HTTP_RESP_STATICFILE,
+    'OutContentIsStatic expected=''%'', actual=''%''',
+    [HTTP_RESP_STATICFILE, FContext.OutContentType]);
+
+  LFileName := StringReplace(FileName, '\',PathDelim, [rfReplaceAll]);
+  FTestCase.CheckUTF8(TFileName(FContext.OutContent) = LFileName,
+    'OutContentIsStatic expected=''%'', actual=''%''',
+    [LFileName, FContext.OutContent]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenOutContentTypeIs(
   const Value: RawUTF8);
 begin
-  FTestCase.Check(FContext.OutContentType = Value, Format(
-    '_OutContentType expected=''%s'', actual=''%s''',
-      [Value, FContext.OutContentType]));
+  FTestCase.CheckUTF8(FContext.OutContentType = Value,
+    'OutContentType expected=''%'', actual=''%''',
+    [Value, FContext.OutContentType]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.WhenRequest(const URL: SockString;
@@ -1885,51 +2434,45 @@ begin
   FContext.Result := inherited Request(FContext);
 end;
 
+{ THttpServerRequestStub }
+
 procedure THttpServerRequestStub.Init;
 begin
-  Prepare('', '', '', '', '', '');
+  Prepare('', '', '', '', '', '', False);
   FOutCustomHeaders := '';
   FOutContentType := '';
   FOutContent := '';
   FResult := 0;
 end;
 
+{ TBoilerplateApplication }
+
 procedure TBoilerplateApplication.Default(var Scope: Variant);
 begin
   TDocVariant.NewFast(Scope);
-  Scope.Content := 'DEFAULT CONTENT';
+  Scope.Content := 'CONTENT';
 end;
 
 procedure TBoilerplateApplication.Error(var Msg: RawUTF8; var Scope: Variant);
 begin
   TDocVariant.NewFast(Scope);
-  Scope.Content := 'ERROR CONTENT';
+  Scope.Content := 'CONTENT';
 end;
 
-procedure TBoilerplateApplication.Start(Server: TSQLRestServer);
-var
-  Params: TMVCViewsMustacheParameters;
-  Views: TMVCViewsAbtract;
+procedure TBoilerplateApplication.Start(Server: TSQLRestServer;
+  const ViewsFolder: TFileName);
 begin
   inherited Start(Server, TypeInfo(IBoilerplateApplication));
-
-  FillChar(Params, SizeOf(Params), 0);
-  with Params do
-  begin
-    Folder := 'Views';
-    FileTimestampMonitorAfterSeconds := 0;
-    ExtensionForNotExistingTemplate := '';
-  end;
-  Views := TMVCViewsMustache.Create(FFactory.InterfaceTypeInfo, Params,
-    (fRestModel as TSQLRestServer).LogClass);
-
-  FMainRunner := TMVCRunOnRestServer.Create(Self, fRestServer, '', Views);
+  FMainRunner := TMVCRunOnRestServer.Create(Self, fRestServer, '',
+    TMVCViewsMustache.Create(FFactory.InterfaceTypeInfo,
+      GetMustacheParams(ViewsFolder), (FRestModel as TSQLRestServer).LogClass));
 end;
 
-procedure TBoilerplateApplication._404(out Scope: Variant);
+procedure TBoilerplateApplication._404(
+  const Dummy: Integer; out Scope: Variant);
 begin
   TDocVariant.NewFast(Scope);
-  Scope.Content := '404 CONTENT';
+  Scope.Content := 'NOT FOUND';
 end;
 
 procedure TBoilerplateFeatures.Scenarios;
@@ -1937,36 +2480,28 @@ begin
   AddCase(TBoilerplateHTTPServerShould);
 end;
 
-procedure CleanUp;
-var
-  LogFiles: TFindFilesDynArray;
-  Index: Integer;
-begin
-  LogFiles := FindFiles(GetCurrentDir, 'mORMotBPTests ???????? ??????.log');
-  for Index := Low(LogFiles) to High(LogFiles) do
-    DeleteFile(LogFiles[Index].Name);
-end;
+{ T404Application }
 
-{ TRedirectApplication }
-
-procedure TRedirectApplication.Default(var Scope: Variant);
+procedure T404Application.Default(var Scope: Variant);
 begin
 end;
 
-procedure TRedirectApplication.Error(var Msg: RawUTF8; var Scope: Variant);
+procedure T404Application.Error(var Msg: RawUTF8; var Scope: Variant);
 begin
 end;
 
-procedure TRedirectApplication.Start(Server: TSQLRestServer);
+procedure T404Application.Start(Server: TSQLRestServer;
+  const ViewsFolder: TFileName);
 begin
   inherited Start(Server, TypeInfo(IBoilerplateApplication));
-  FMainRunner := TMVCRunOnRestServer.Create(Self, fRestServer);
+  FMainRunner := TMVCRunOnRestServer.Create(Self, fRestServer, '',
+    TMVCViewsMustache.Create(FFactory.InterfaceTypeInfo,
+      GetMustacheParams(ViewsFolder), (FRestModel as TSQLRestServer).LogClass));
 end;
 
-procedure TRedirectApplication._404(out Scope: Variant);
+procedure T404Application._404(const Dummy: Integer; out Scope: Variant);
 begin
-  raise EMVCApplication.CreateGotoView(
-    'http://redirection.com', [], HTTP_TEMPORARYREDIRECT);
+  Is404Called := True;
 end;
 
 end.

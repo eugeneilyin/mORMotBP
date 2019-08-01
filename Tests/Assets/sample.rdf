@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+
+<rdf:RDF
+xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+xmlns:si="https://www.w3schools.com/rdf/">
+
+<rdf:Description rdf:about="https://www.w3schools.com">
+  <si:title>W3Schools</si:title>
+  <si:author>Jan Egil Refsnes</si:author>
+</rdf:Description>
+
+</rdf:RDF>

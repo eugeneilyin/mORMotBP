@@ -1,0 +1,42 @@
+package BuildEventsD5;
+
+{$R *.RES}
+{$ALIGN ON}
+{$ASSERTIONS OFF}
+{$BOOLEVAL OFF}
+{$DEBUGINFO ON}
+{$EXTENDEDSYNTAX ON}
+{$IMPORTEDDATA ON}
+{$IOCHECKS ON}
+{$LOCALSYMBOLS ON}
+{$LONGSTRINGS ON}
+{$OPENSTRINGS ON}
+{$OPTIMIZATION ON}
+{$OVERFLOWCHECKS OFF}
+{$RANGECHECKS OFF}
+{$REFERENCEINFO ON}
+{$SAFEDIVIDE OFF}
+{$STACKFRAMES ON}
+{$TYPEDADDRESS OFF}
+{$VARSTRINGCHECKS ON}
+{$WRITEABLECONST ON}
+{$MINENUMSIZE 1}
+{$IMAGEBASE $400000}
+{$DESCRIPTION 'Build Events for Delphi 5'}
+{$IMPLICITBUILD OFF}
+
+requires
+  vcl50,
+  VclSmp50;
+
+contains
+  uBuildCommandEditor in 'uBuildCommandEditor.pas' {BuildCommandEditorDlg},
+  uBuildEngine in 'uBuildEngine.pas',
+  uBuildMessages in 'uBuildMessages.pas',
+  uBuildMisc in 'uBuildMisc.pas',
+  uBuildNotifier in 'uBuildNotifier.pas',
+  uBuildOptionExpert in 'uBuildOptionExpert.pas',
+  uBuildOptionsForm in 'uBuildOptionsForm.pas' {BuildOptionsForm},
+  uBuildMacroEditor in 'uBuildMacroEditor.pas' {MacroEditor};
+
+end.

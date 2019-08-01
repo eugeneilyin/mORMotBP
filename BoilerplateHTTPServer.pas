@@ -6,44 +6,44 @@ unit BoilerplateHTTPServer;
   This file is a path of integration project between HTML5 Boilerplate and
   Synopse mORMot Framework.
 
-    http://synopse.info
+    https://synopse.info
     https://html5boilerplate.com
 
   Boilerplate HTTP Server
-  (c) 2016 Yevgeny Iliyn
+  (c) 2016-Present Yevgeny Iliyn
 
   https://github.com/eugeneilyin/mORMotBP
 
-  Version 1.0.0
+  Version 1.0
   - First public release
 
-  Version 1.1.0
+  Version 1.1
   - minor "Cache-Control" parameters order changes
   - added bpoDelegateIndexToInheritedDefault to delegate index.html to Default()
   - added bpoDelegate404ToInherited_404 to delegate 404.html to _404()
 
-  Version 1.2.0
+  Version 1.2
   - fix "Accept-Encoding" parsing when gzip in the end of encodings list
   - make Pre-Build events notice more visible in tests and demo
   - minor code refactoring
 
-  Version 1.3.0
-  - fix bug in assetslz tool when asset name started with '.'
+  Version 1.3
+  - fix bug in packassets tool when asset name started with '.'
 
-  Version 1.4.0
+  Version 1.4
   - make TAsset to be packed record for better x86/x64 platforms compatibility
 
-  Version 1.5.0
+  Version 1.5
   - fix EnableCacheByETag test scenarios
 
-  Version 1.6.0
+  Version 1.6
   - add custom options registration
   - add Vary header into http response for compressible resources
 
-  Version 1.7.0
+  Version 1.7
   - add custom options registration for group of URLs
 
-  Version 1.8.0
+  Version 1.8
   - support redirections in /404 response
   - changed HTML_* to HTTP_* constants following the mORMot refactoring
   - support new HTTP context initialization spec
@@ -51,9 +51,49 @@ unit BoilerplateHTTPServer;
   Version 1.8.1
   - RegisterCustomOptions now supports URLs prefixes
 
+  Version 2.0
+  - Align all boilerplate assets to recent HTML 5 Boilerplate 7.2.0
+  - All Delphi compilers support started from Delphi 6
+    (special BuildEvents IDE extenstion provided for old Delphi 6/7/2005/2006)
+  - Free Pascal support
+    (for Lazarus IDE pre-build.sh scipt provided to compress and embed static
+    assets over "Run / Build File" IDE option)
+  - Kylix 3 support (over CrossKilyx)
+  - Zopfli compression support for static assets
+    (save up to 5-15% of traffic and delivery time compared to max GZip Level)
+  - Brotli compression support for static assets as per RFC 7932
+    (save another 15%-25% of traffic and delivery time compared to Zopfli)
+  - All assets compressions (GZip/Zopfli, and Brotli) now precomputed and
+    embedded, so you save your CPU cycles by skipping any static assets
+    compression on production
+  - Add additional cache bursting strategy. See bpoEnableCacheBustingBeforeExt
+  - Following RFC 7946 the GeoJSON applications now
+    use application/geo+json MIME type
+  - MIME Type for RDF XML documents now application/rdf+xml
+    following as per RFC 3870
+  - Add support of .mjs files with EcmaScript modules
+    (or JavaScript modules) MIME types
+  - Add web assembly (.wasm) MIME type support
+  - Woff fonts (.woff) now have updated font/woff MIME type
+  - Woff version 2 fonts (.woff2) now have updated font/woff2 MIME type
+  - True Type collection .ttc fonts now have separate font/collection MIME type
+  - TTF fonts (.ttf) now have separate font/ttf MIME type
+  - OTF fonts (.otf) now have separate font/otf MIME type
+  - Add support for .ics (text/calendar), and .markdown, .md (text/markdown)
+    MIME types
+  - Upgrade the required 'charset=UTF-8' MIME type list
+  - Upgrade Content Sequrity Policy (CSP)
+  - New bpoEnableReferrerPolicy options
+  - The GZippedMimeTypes has been removed
+    (just pack your assets with updated assetslz tool)
+  - Deprecation of Iframes cookies support in Internet Explorer
+  - TAssets.SaveAssets remove regexp for assets matching
+    (this excludes dependency over SynTable.pas)
 *)
 
 interface
+
+{$I Synopse.inc} // define HASINLINE USETYPEINFO CPU32 CPU64 OWNNORMTOUPPER
 
 uses
   SysUtils,
@@ -72,8 +112,8 @@ type
     // Allow cross-origin requests.
     //
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Access_control_CORS
-    // http://enable-cors.org/
-    // http://www.w3.org/TR/cors/
+    // https://enable-cors.org/
+    // https://www.w3.org/TR/cors/
     bpoAllowCrossOrigin,
 
     /// Cross-origin images
@@ -88,8 +128,10 @@ type
     /// Cross-origin web fonts
     // Allow cross-origin access to web fonts.
     //
-    // - Use TBoilerplateHTTPServer.FileTypesFont to specify file types
-    bpoAllowCrossOriginFonts,
+    // https://developers.google.com/fonts/docs/troubleshooting
+    //
+    // - Use TBoilerplateHTTPServer.FileTypesFont to specify file types
+    bpoAllowCrossOriginFonts,
 
     /// Cross-origin resource timing
     // Allow cross-origin access to the timing information for all resources.
@@ -99,20 +141,21 @@ type
     // some of the attributes of the `PerformanceResourceTiming` object will
     // be set to zero.
     //
-    // http://www.w3.org/TR/resource-timing/
-    // http://www.stevesouders.com/blog/2014/08/21/resource-timing-practical-tips/
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Timing-Allow-Origin
+    // https://www.w3.org/TR/resource-timing/
+    // https://www.stevesouders.com/blog/2014/08/21/resource-timing-practical-tips/
     bpoAllowCrossOriginTiming,
 
     /// Custom error messages/pages
     // Customize what server returns to the client in case of an error.
 
-    // Delete content generation for HTTP 400 responce code to '/404'
+    // Set content for HTTP 400 Bad Request response code equal '/404' content
     bpoDelegateBadRequestTo404,
 
-    // Delete content generation for HTTP 403 responce code to '/404'
+    // Set content for HTTP 403 Forbidden response code to '/404' content
     bpoDelegateForbiddenTo404,
 
-    // Delete content generation for HTTP 404 responce code to '/404'
+    // Set content for HTTP 404 Not Found response code to '/404' content
     bpoDelegateNotFoundTo404,
 
     /// Internet Explorer Document modes                                                     |
@@ -127,38 +170,50 @@ type
     // consider enabling `Enterprise Mode` throughout your company.
     //
     // https://msdn.microsoft.com/en-us/library/ie/bg182625.aspx#docmode
-    // http://blogs.msdn.com/b/ie/archive/2014/04/02/stay-up-to-date-with-enterprise-mode-for-internet-explorer-11.aspx
-    //
-    // - Use TBoilerplateHTTPServer.FileTypesAsset to exclude some file types
+    // https://blogs.msdn.microsoft.com/ie/2014/04/02/stay-up-to-date-with-enterprise-mode-for-internet-explorer-11/
+    // https://msdn.microsoft.com/en-us/library/ff955275.aspx
     bpoSetXUACompatible,
-
-    /// Internet Explorer Iframes cookies
-    // Allow cookies to be set from iframes in Internet Explorer.
-    //
-    // https://msdn.microsoft.com/en-us/library/ms537343.aspx
-    // http://www.w3.org/TR/2000/CR-P3P-20001215/
-    bpoSetP3P,
 
     /// Media types
     // Serve resources with the proper media types (f.k.a. MIME types).
     //
     // https://www.iana.org/assignments/media-types/media-types.xhtml
+    // - Use TBoilerplateOption.ForceMIMETypes to set MIME types
     bpoForceMIMEType,
-
-    /// Character encodings
-    // Serve all resources labeled as `text/html` or `text/plain`
-    // with the media type `charset` parameter set to `UTF-8`.
-    bpoForceTextUTF8Charset,
 
     /// Serve the following file types with the media type `charset`
     // parameter set to `UTF-8`.
     // - Use TBoilerplateHTTPServer.FileTypesRequiredCharSet to setup file types
     bpoForceUTF8Charset,
 
+    /// Character encodings
+    // Serve all resources labeled as `text/html` or `text/plain`
+    // with the media type `charset` parameter set to `UTF-8`.
+    bpoForceTextUTF8Charset,
+
     /// Forcing `https://`
     //
     // Redirect from the `http://` to the `https://` version of the URL.
     bpoForceHTTPS,
+
+    // If you're using cPanel AutoSSL or the Let's Encrypt webroot
+    // method it will fail to validate the certificate if validation
+    // requests are redirected to HTTPS. Turn on the condition(s)
+    // you need.
+    //
+    // https://www.iana.org/assignments/well-known-uris/well-known-uris.xhtml
+    // https://tools.ietf.org/html/draft-ietf-acme-acme-12
+    //
+    // /.well-known/acme-challenge/
+    // /.well-known/cpanel-dcv/[\w-]+$
+    // /.well-known/pki-validation/[A-F0-9]{32}\.txt(?:\ Comodo\ DCV)?$
+    //
+    // The simplified locations are used:
+    //
+    // /.well-known/acme-challenge/*
+    // /.well-known/cpanel-dcv/*
+    // /.well-known/pki-validation/*
+    bpoForceHTTPSExceptLetsEncrypt,
 
     /// Protect website against clickjacking.
     //
@@ -186,10 +241,10 @@ type
     // against more than just clickjacking attacks:
     // https://cure53.de/xfo-clickjacking.pdf.
     //
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
     // https://tools.ietf.org/html/rfc7034
-    // http://blogs.msdn.com/b/ieinternals/archive/2010/03/30/combating-clickjacking-with-x-frame-options.aspx
-    // https://www.owasp.org/index.php/Clickjacking
-    //
+    // https://blogs.msdn.microsoft.com/ieinternals/2010/03/30/combating-clickjacking-with-x-frame-options/
+    // https://www.owasp.org/index.php/Clickjacking    //
     // - Use TBoilerplateHTTPServer.FileTypesAsset to exclude some file types
     bpoSetXFrameOptions,
 
@@ -199,9 +254,16 @@ type
     // left by some text editors and can pose a security risk when anyone
     // has access to them.
     //
-    // http://feross.org/cmsploit/
+    // https://feross.org/cmsploit/
+    //
+    // (!) Update TBoilerplateHTTPServer.FileTypesBlocked property to
+    // include any files that might end up on your production server and
+    // can expose sensitive information about your website. These files may
+    // include: configuration files, files that contain metadata about the
+    // project (e.g.: project dependencies), build scripts, etc..
     //
     // - Use TBoilerplateHTTPServer.FileTypesBlocked to specify file types
+    // - This option also blocks any URL path ended with '~' or '#'
     bpoDelegateBlocked,
 
     /// Reducing MIME type security risks
@@ -212,44 +274,60 @@ type
     // is serving user-uploaded content or content that could potentially be
     // treated as executable by the browser.
     //
-    // http://www.slideshare.net/hasegawayosuke/owasp-hasegawa
-    // http://blogs.msdn.com/b/ie/archive/2008/07/02/ie8-security-part-v-comprehensive-protection.aspx
-    // https://msdn.microsoft.com/en-us/library/ie/gg622941.aspx
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Content-Type-Options
+    // https://blogs.msdn.microsoft.com/ie/2008/07/02/ie8-security-part-v-comprehensive-protection/
     // https://mimesniff.spec.whatwg.org/
     bpoPreventMIMESniffing,
 
     /// Reflected Cross-Site Scripting (XSS) attacks
-    //  The filter is usually enabled by default, but in some cases it
-    //  may be disabled by the user. However, in Internet Explorer for
-    //  example, it can be re-enabled just by sending the
-    //  `X-XSS-Protection` header with the value of `1`.
+    // The filter is usually enabled by default, but in some cases it
+    // may be disabled by the user. However, in Internet Explorer for
+    // example, it can be re-enabled just by sending the
+    // `X-XSS-Protection` header with the value of `1`.
     //
-    //  Prevent web browsers from rendering the web page if a potential
-    //  reflected (a.k.a non-persistent) XSS attack is detected by the
-    //  filter.
+    // Prevent web browsers from rendering the web page if a potential
+    // reflected (a.k.a non-persistent) XSS attack is detected by the
+    // filter.
     //
-    //  By default, if the filter is enabled and browsers detect a
-    //  reflected XSS attack, they will attempt to block the attack
-    //  by making the smallest possible modifications to the returned
-    //  web page.
+    // By default, if the filter is enabled and browsers detect a
+    // reflected XSS attack, they will attempt to block the attack
+    // by making the smallest possible modifications to the returned
+    // web page.
     //
-    //  Unfortunately, in some browsers (e.g.: Internet Explorer),
-    //  this default behavior may allow the XSS filter to be exploited,
-    //  thereby, it's better to inform browsers to prevent the rendering
-    //  of the page altogether, instead of attempting to modify it.
+    // Unfortunately, in some browsers (e.g.: Internet Explorer),
+    // this default behavior may allow the XSS filter to be exploited,
+    // thereby, it's better to inform browsers to prevent the rendering
+    // of the page altogether, instead of attempting to modify it.
     //
-    //  https://hackademix.net/2009/11/21/ies-xss-filter-creates-xss-vulnerabilities
+    // https://hackademix.net/2009/11/21/ies-xss-filter-creates-xss-vulnerabilities
     //
     // (!) Do not rely on the XSS filter to prevent XSS attacks! Ensure that
     //     you are taking all possible measures to prevent XSS attacks, the
     //     most obvious being: validating and sanitizing your website's inputs.
     //
-    // http://blogs.msdn.com/b/ie/archive/2008/07/02/ie8-security-part-iv-the-xss-filter.aspx
-    // http://blogs.msdn.com/b/ieinternals/archive/2011/01/31/controlling-the-internet-explorer-xss-filter-with-the-x-xss-protection-http-header.aspx
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-XSS-Protection
+    // https://blogs.msdn.microsoft.com/ie/2008/07/02/ie8-security-part-iv-the-xss-filter/
+    // https://blogs.msdn.microsoft.com/ieinternals/2011/01/31/controlling-the-xss-filter/
     // https://www.owasp.org/index.php/Cross-site_Scripting_%28XSS%29
     //
     // - Use TBoilerplateHTTPServer.FileTypesAsset to exclude some file types
     bpoEnableXSSFilter,
+
+    /// Referrer Policy
+    //
+    // A web application uses HTTPS and a URL-based session identifier.
+    // The web application might wish to link to HTTPS resources on other
+    // web sites without leaking the user's session identifier in the URL.
+    //
+    // This can be done by setting a `Referrer Policy` which
+    // whitelists trusted sources of content for your website.
+    //
+    // To check your referrer policy, you can use an online service
+    // such as: https://securityheaders.io/.
+    //
+    // https://scotthelme.co.uk/a-new-security-header-referrer-policy/
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Referrer-Policy
+    bpoEnableReferrerPolicy,
 
     /// Remove the `X-Powered-By` response header that:
     // Better add NOXPOWEREDNAME into Conditional Defines in the Project Options
@@ -258,9 +336,9 @@ type
     //    (e.g.: ASP.NET, PHP), and its value contains information
     //    about them (e.g.: their name, version number)
     //
-    //  * doesn't provide any value as far as users are concern,
-    //    and in some cases, the information provided by it can
-    //    be used by attackers
+    //  * doesn't provide any value to users, contributes to header
+    //    bloat, and in some cases, the information it provides can
+    //    expose vulnerabilities
     //
     // (!) If you can, you should disable the `X-Powered-By` header from the
     // language / framework level (e.g.: for PHP, you can do that by setting
@@ -270,16 +348,13 @@ type
     bpoDeleteXPoweredBy,
 
     /// Force compression for mangled `Accept-Encoding` request headers
-    // https://developer.yahoo.com/blogs/ydn/pushing-beyond-gzipping-25601.html
+    //
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept-Encoding
+    // https://calendar.perfplanet.com/2010/pushing-beyond-gzipping/
     //
     // - Use TBoilerplateHTTPServer.MangledEncodingHeaders
     // - Use TBoilerplateHTTPServer.MangledEncodingHeaderValues
     bpoFixMangledAcceptEncoding,
-
-    /// Compress all output labeled with one of the known media types.
-    //
-    // - Use TBoilerplateHTTPServer.GZippedMIMETypes to specify file types
-    bpoEnableGZipByMIMETypes,
 
     /// Map the following filename extensions to the specified
     // encoding type in order to make serve the file types
@@ -292,14 +367,23 @@ type
     // the response, and thus, wouldn't be able to understand the
     // content.
     //
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Encoding
+    //
     // - Use TBoilerplateHTTPServer.FileTypesForceGZipHeader to setup file types
     bpoForceGZipHeader,
+
+    /// Allow static assets to be cached by proxy servers
+    bpoSetCachePublic,
+
+    /// Allow static assets to be cached only by browser, but not by intermediate proxy servers
+    bpoSetCachePrivate,
 
     /// Content transformation
     // Prevent intermediate caches or proxies (e.g.: such as the ones
     // used by mobile network providers) from modifying the website's
     // content.
     //
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
     // https://tools.ietf.org/html/rfc2616#section-14.9.5
     //
     // (!) If you are using `mod_pagespeed`, please note that setting
@@ -310,12 +394,6 @@ type
     //
     // https://developers.google.com/speed/pagespeed/module/configuration#notransform
     bpoSetCacheNoTransform,
-
-    /// Allow static assets to be cached by proxy servers
-    bpoSetCachePublic,
-
-    /// Allow static assets to be cached only by browser, but not by intermediate proxy servers
-    bpoSetCachePrivate,
 
     /// Allow static assets to be validated with server before return cached copy
     bpoSetCacheNoCache,
@@ -332,6 +410,7 @@ type
     bpoSetCacheMaxAge,
 
     // Use ETag/If-None-Match caching
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/ETag
     // https://developer.yahoo.com/performance/rules.html#etags
     // https://tools.ietf.org/html/rfc7232#section-2.3
     bpoEnableCacheByETag,
@@ -341,15 +420,23 @@ type
     // https://tools.ietf.org/html/rfc7232#section-2.3
     bpoEnableCacheByLastModified,
 
-    /// Expires headers
-    // Serve resources with far-future expires headers.
+    /// Cache expiration
+    // Serve resources with far-future expiration date.
     //
     // (!) If you don't control versioning with filename-based
     // cache busting, you should consider lowering the cache times
     // to something like one week.
     //
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Cache-Control
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Expires
+    //
     // - TBoilerplateHTTPServer.Expires
     bpoSetExpires,
+
+    ///Filename-based cache busting
+    //
+    // Removes all query path of the URL `/style.css?v231` to `/style.css`
+    bpoEnableCacheBusting,
 
     ///Filename-based cache busting
     //
@@ -359,8 +446,8 @@ type
     //
     // To understand why this is important and even a better solution than
     // using something like `*.css?v231`, please see:
-    // http://www.stevesouders.com/blog/2008/08/23/revving-filenames-dont-use-querystring/
-    bpoEnableCacheBusting,
+    // https://www.stevesouders.com/blog/2008/08/23/revving-filenames-dont-use-querystring/
+    bpoEnableCacheBustingBeforeExt,
 
     // Delete content generation for '' and '/' URLs to '/index.html'
     bpoDelegateRootToIndex,
@@ -376,25 +463,29 @@ type
     // It allows to inject custom IMVCApplication._404() interface method
     bpoDelegate404ToInherited_404,
 
-    /// Add 'Vary: Accept-Encoding' header for resource types specified in
-    // TBoilerplateHTTPServer.GZippedMIMETypes
+    /// Add 'Vary: Accept-Encoding' header for assets with GZip/Brotli encoding
     bpoVaryAcceptEncoding
   );
 
   TBoilerplateOptions = set of TBoilerplateOption;
 
-  /// Suppressing / Forcing the `www.` at the beginning of URLs
+  // (!) NEVER USE BOTH WWW-RELATED RULES AT THE SAME TIME!
+  //
   // The same content should never be available under two different
   // URLs, especially not with and without `www.` at the beginning.
   // This can cause SEO problems (duplicate content), and therefore,
   // you should choose one of the alternatives and redirect the other
   // one.
   //
-  // wwwSuppress: Rewrite www.example.com --> example.com
-  // wwwForce: Rewrite example.com --> www.example.com
+  // wwwSuppress:
+  //   Suppressing the `www.` at the beginning of URLs
+  //   Rewrite www.example.com --> example.com
   //
-  // Be aware that wwwForce might not be a good idea if you use "real"
-  // subdomains for certain parts of your website.
+  // wwwForce:
+  //   Forcing the `www.` at the beginning of URLs
+  //   Rewrite example.com --> www.example.com
+  //   Be aware that wwwForce might not be a good idea if you use "real"
+  //   subdomains for certain parts of your website.
   TWWWRewrite = (wwwOff, wwwSuppress, wwwForce);
 
   /// HTTP Strict Transport Security (HSTS
@@ -409,16 +500,33 @@ type
   // server via HTTPS, regardless of what the users type in the browser's
   // address bar.
   //
+  // (!) Be aware that this, once published, is not revokable and you must ensure
+  // being able to serve the site via SSL for the duration you've specified
+  // in max-age. When you don't have a valid SSL connection (anymore) your
+  // visitors will see a nasty error message even when attempting to connect
+  // via simple HTTP.
+  //
   // (!) Do not use strictSSLIncludeSubDomains if the website's subdomains
   // are not using HTTPS (e.g. http://static.domain.com).
   //
-  // http://www.html5rocks.com/en/tutorials/security/transport-layer-security/
-  // https://tools.ietf.org/html/draft-ietf-websec-strict-transport-sec-14section-6.1
-  // http://blogs.msdn.com/b/ieinternals/archive/2014/08/18/hsts-strict-transport-security-attacks-mitigations-deployment-https.aspx
+  // (1) If you want to submit your site for HSTS preload (2) you must
+  //     * ensure the `includeSubDomains` directive to be present
+  //     * the `preload` directive to be specified
+  //     * the `max-age` to be at least 31536000 seconds (1 year) according to the current status.
+  //
+  //     It is also advised (3) to only serve the HSTS header via a secure connection
+  //     which can be done with either `env=https` or `"expr=%{HTTPS} == 'on'"` (4). The
+  //     exact way depends on your environment and might just be tried.
+  //
+  // (2) https://hstspreload.org/
+  // (3) https://tools.ietf.org/html/rfc6797#section-7.2
+  // (4) https://stackoverflow.com/questions/24144552/how-to-set-hsts-header-from-htaccess-only-on-https/24145033#comment81632711_24145033
+  //
+  // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Strict-Transport-Security
+  // https://tools.ietf.org/html/rfc6797#section-6.1
+  // https://www.html5rocks.com/en/tutorials/security/transport-layer-security/
+  // https://blogs.msdn.microsoft.com/ieinternals/2014/08/18/strict-transport-security/
   TStrictSSL = (strictSSLOff, strictSSLOn, strictSSLIncludeSubDomains);
-
-  /// GZip level used for response compression
-  TGZipLevel = (gz0, gz1, gz2, gz3, gz4, gz5, gz6, gz7, gz8, gz9);
 
 type
 
@@ -429,14 +537,12 @@ type
     FOptions: TBoilerplateOptions;
     FContentSecurityPolicy: SockString;
     FStrictSSL: TStrictSSL;
+    FReferrerPolicy: SockString;
     FWWWRewrite: TWWWRewrite;
-    FGZipLevel: TGZipLevel;
     FFileTypesImage: RawUTF8;
     FFileTypesImageArray: TRawUTF8DynArray;
     FFileTypesFont: RawUTF8;
     FFileTypesFontArray: TRawUTF8DynArray;
-    FFileTypesAsset: RawUTF8;
-    FFileTypesAssetArray: TRawUTF8DynArray;
     FForceMIMETypes: RawUTF8;
     FForceMIMETypesValues: TSynNameValue;
     FFileTypesRequiredCharSet: RawUTF8;
@@ -447,100 +553,102 @@ type
     FMangledEncodingHeadersArray: TRawUTF8DynArray;
     FMangledEncodingHeaderValues: RawUTF8;
     FMangledEncodingHeaderValuesArray: TRawUTF8DynArray;
-    FGZippedMIMETypes: RawUTF8;
-    FGZippedMIMETypesArray: TRawUTF8DynArray;
     FFileTypesForceGZipHeader: RawUTF8;
     FFileTypesForceGZipHeaderArray: TRawUTF8DynArray;
     FExpires: RawUTF8;
     FExpiresDefault: PtrInt;
     FExpiresValues: TSynNameValue;
-    FGZippedAssets: TSynNameValue;
     FStaticRoot: TFileName;
     FCustomOptions: TSynNameValue;
     FCustomOptionPrefixes: TSynNameValue;
 
-    /// Init assets and set default values for properties
+    /// Init assets and set properties default values
     procedure Init; virtual;
 
-    /// Cut '?' and the next URL content
-    // This is usefull for reload cached resources like '/img.jpg?v=1.2.3'
-    // Extract and lowercase file type like '.css' or '.jpg'
+    /// Extract url path and file type
+    // - Ext
+    //   Extracted lowercased file type (e.g. '.css', or '.svg')
+    // - EnableCacheBusting
+    //   Removes '?' sign and all followed URL content. This is usefull for
+    //   resources cache busting on client side for urls like '/bkg.jpg?v=1.2.3'
+    //   See bpoEnableCacheBusting
+    // - EnableCacheBustingBeforeExt
+    //   Use more effective cache bust strategy to route all requests such
+    //   as `/style.12345.css` to `/style.css`.
+    //   See bpoEnableCacheBustingBeforeExt
     procedure SplitURL(const URL: SockString; out Path, Ext: SockString;
-      const EnableCacheBusting: Boolean); {$ifdef HASINLINE}inline;{$endif}
-
-    /// Fill the RawUTF8 array with unique, lower-cased and
-    // sorted values ready for binary search
-    procedure ArrayFromCSV(out anArray: TRawUTF8DynArray; const CSV: RawUTF8;
-      const Prefix: RawUTF8 = '.'; const Sep: AnsiChar = ',');
-        {$ifdef HASINLINE}inline;{$endif}
+      const EnableCacheBusting, EnableCacheBustingBeforeExt: Boolean);
+        {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Binary search of file type in sorted array with unique values
     function FastInArray(const Ext: SockString;
-      const Exts: TRawUTF8DynArray): Boolean; {$ifdef HASINLINE}inline;{$endif}
+      const Exts: TRawUTF8DynArray): Boolean;
 
     /// Add HTTP header value to Context.OutHeaders
     procedure AddCustomHeader(Context: THttpServerRequest;
-      const Header, Value: SockString);
-      {$ifdef HASINLINE}inline;{$endif}
+      const Header, Value: SockString); {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Remove HTTP header value from Context.OutHeaders
     function DeleteCustomHeader(Context: THttpServerRequest;
-      const HeaderUp: SockString): SockString; {$ifdef HASINLINE}inline;{$endif}
+      const HeaderUp: SockString): SockString; {$IFDEF HASINLINE}inline;{$ENDIF}
 
-    /// Validate that HTTP responce content can be GZipped
-    function IsGZipAccepted(Context: THttpServerRequest;
-      const FixMangled: Boolean): Boolean; {$ifdef HASINLINE}inline;{$endif}
+    /// Validate that HTTP client can accept GZip and Brotli content encodings
+    procedure GetAcceptedEncodings(Context: THttpServerRequest;
+      const FixMangled: Boolean; out GZipAccepted, BrotliAccepted: Boolean);
+        {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Check ETag of Last-Modified values
-    function IsContentModified(Context: THttpServerRequest; const Asset: PAsset;
-      const CheckETag, CheckModified: Boolean): Boolean; virtual;
-        {$ifdef HASINLINE}inline;{$endif}
+    function WasModified(Context: THttpServerRequest; Asset: PAsset;
+      const Encoding: TAssetEncoding;
+      const CheckETag, CheckModified: Boolean): Boolean;
 
     /// Convert "text/html=1m", "image/x-icon=1w", etc. expires to seconds
-    function ExpiresToSecs(const Value: RawUTF8): PtrInt; virtual;
-      {$ifdef HASINLINE}inline;{$endif}
+    function ExpiresToSecs(const Value: RawUTF8): PtrInt;
+      {$IFNDEF VER180}{$IFDEF HASINLINE}inline;{$ENDIF}{$ENDIF}
 
     /// Get number of seconds, when content will be expired
     function GetExpires(const ContentType: RawUTF8): PtrInt;
-      {$ifdef HASINLINE}inline;{$endif}
+      {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Removes charset from content type
     function ContentTypeWithoutCharset(const ContentType: RawUTF8): RawUTF8;
-      {$ifdef HASINLINE}inline;{$endif}
+      {$IFDEF HASINLINE}inline;{$ENDIF}
 
-    /// Compress HTTP responce content
-    // Taken from SynZip.pas only compression level customization has added
-    procedure CompressGZip(var DataRawByteString; const Level: Integer);
-      {$ifdef HASINLINE}inline;{$endif}
-
-    /// Rebuild assets GZipped cache
-    procedure CreateGZippedAssets; {$ifdef HASINLINE}inline;{$endif}
-
-    /// Save static content to delegate file sending to low-level API
-    procedure SaveStaticAsset(const Context: THttpServerRequest;
-      const Asset: PAsset; const GZippedContent: RawByteString); virtual;
-        {$ifdef HASINLINE}inline;{$endif}
-
-    /// Find host for redirection rules. Returns '' if host not found
-    function FindHost(const Context: THttpServerRequest): SockString; virtual;
-      {$ifdef HASINLINE}inline;{$endif}
+    /// Find host for redirection rules. Returns '' if not found
+    function FindHost(const Context: THttpServerRequest): SockString;
+      {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Find custom options registered for specific URL by RegisterCustomOptions
     function FindCustomOptions(const URLPath: RawUTF8;
       const Default: TBoilerplateOptions): TBoilerplateOptions;
+        {$IFDEF HASINLINE}inline;{$ENDIF}
 
     procedure SetFileTypesImage(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetFileTypesFont(const Value: RawUTF8);
-    procedure SetFileTypesAsset(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetForceMIMETypes(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetFileTypesRequiredCharSet(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetFileTypesBlocked(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetMangledEncodingHeaders(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetMangledEncodingHeaderValues(const Value: RawUTF8);
-    procedure SetGZippedMIMETypes(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetFileTypesForceGZipHeader(const Value: RawUTF8);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
+
     procedure SetExpires(const Value: RawUTF8);
-    procedure SetGZipLevel(const Value: TGZipLevel);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
 
   protected
     function Request(Context: THttpServerRequest): Cardinal; override;
@@ -571,32 +679,53 @@ type
       aDefinition: TSQLHttpServerDefinition); overload;
 
   public
-    /// Load assets from RT_RCDATA synzl-compressed resource
+    /// Load static assets from specific RT_RCDATA synzl-compressed resource
     procedure LoadFromResource(const ResName: string);
+      {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Register custom Cache-Control options for specific URL
     // For example if you want to cache most of *.html pages with standart
     // Cache-Control options, but change this rule for
     // default page or login page.
-    // For URLs prefix use asterisk, e.g. '/customer/*'
+    // For URL prefixes use asterisk char postfix, e.g. '/customer/*'
     procedure RegisterCustomOptions(const URLPath: RawUTF8;
-      CustomOptions: TBoilerplateOptions); overload;
+      const CustomOptions: TBoilerplateOptions); overload;
+        {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Register custom Cache-Control options for specific URL's
     // For example if you want cache most *.html pages with standart
-    // Cache-Control options, but change this rule for default page or login page
-    // For URLs prefix use asterisk, e.g. '/customer/*'
+    // Cache-Control options, but change this rule for default page or api calls
+    // For URL prefixes use asterisk char postfix, e.g. '/customer/*'
     procedure RegisterCustomOptions(const URLParts: TRawUTF8DynArray;
       CustomOptions: TBoilerplateOptions); overload;
+        {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Removes custom options usage for specific URL
     procedure UnregisterCustomOptions(const URLPath: RawUTF8); overload;
+      {$IFDEF HASINLINE}inline;{$ENDIF}
 
     /// Removes custom options usage for specific URLs
-    procedure UnregisterCustomOptions(const URLPaths: TRawUTF8DynArray); overload;
+    procedure UnregisterCustomOptions(
+      const URLPaths: TRawUTF8DynArray); overload;
+        {$IFDEF HASINLINE}inline;{$ENDIF}
+
+    /// If this directory is not empty, all loaded static assets will be
+    // pre-saved as files into this directory. To minimize disk IO operations
+    // file modified timestamp and file size will be checked before saving.
+    // The STATICFILE_CONTENT_TYPE will be used to inform the lower level API
+    // to send the response as file content. All assets will be saved into
+    // three different sub-directories 'identity' for plain unmodified assets,
+    // 'gzip' for gzipped assets versions, 'brotli' for assets with brotli
+    // compression.
+    // See LoadFromResource method to preliminary load server static assets from
+    // the embedded synlz-packed RC_RTDATA resource.
+    property StaticRoot: TFileName read FStaticRoot write FStaticRoot;
 
     /// See TBoilerplateOptions
     property Options: TBoilerplateOptions read FOptions write FOptions;
+
+    /// See TStrictSSL
+    property StrictSSL: TStrictSSL read FStrictSSL write FStrictSSL;
 
     /// See TWWWRewrite
     property WWWRewrite: TWWWRewrite read FWWWRewrite write FWWWRewrite;
@@ -609,42 +738,83 @@ type
     // This can be done by setting a `Content Security Policy` which
     // whitelists trusted sources of content for your website.
     //
-    // The example header below allows ONLY scripts that are loaded from
-    // the current website's origin (no inline scripts, no CDN, etc).
-    // That almost certainly won't work as-is for your website!
+    // There is no policy that fits all websites, you will have to modify
+    // the `Content-Security-Policy` directives in the example below depending
+    // on your needs.
     //
-    // To make things easier, you can use an online CSP header generator
-    // such as: http://cspisawesome.com/.
+    // The example policy below aims to:
     //
-    // http://content-security-policy.com/
-    // http://www.html5rocks.com/en/tutorials/security/content-security-policy/
-    // http://www.w3.org/TR/CSP11/
+    //  (1) default-src 'self'
+    //      Restrict all fetches by default to the origin of the current website
+    //      by setting the `default-src` directive to `'self'` - which acts as a
+    //      fallback to all "Fetch directives" (https://developer.mozilla.org/en-US/docs/Glossary/Fetch_directive).
     //
-    // Very strict example (block all external, not usefull in practice):
-    //   ContentSecurityPolicy :=  'script-src ''self''; object-src ''self''';
+    //      This is convenient as you do not have to specify all Fetch directives
+    //      that apply to your site, for example:
+    //      `connect-src 'self'; font-src 'self'; script-src 'self'; style-src 'self'`, etc.
+    //
+    //      This restriction also means that you must explicitly define from
+    //      which site(s) your website is allowed to load resources from.
+    //
+    //  (2) base-uri 'none'
+    //      The `<base>` element is not allowed on the website. This is to
+    //      prevent attackers from changing the locations of resources loaded
+    //      from relative URLs.
+    //
+    //      If you want to use the `<base>` element, then `base-uri 'self'`
+    //      can be used instead.
+    //
+    //  (3) form-action 'self'
+    //      Form submissions are only allowed from the current website by
+    //      setting: `form-action 'self'`.
+    //
+    //  (4) frame-ancestors 'none'
+    //      Prevents all websites (including your own) from embedding your
+    //      webpages within e.g. the `<iframe>` or `<object>` element by
+    //      setting `frame-ancestors 'none'`.
+    //
+    //      The `frame-ancestors` directive helps avoid "Clickjacking" attacks
+    //      and is similar to the `X-Frame-Options` header.
+    //
+    //      Browsers that support the CSP header will ignore `X-Frame-Options`
+    //      if `frame-ancestors` is also specified.
+    //
+    //  (5) upgrade-insecure-requests
+    //      Forces the browser to treat all the resources that are served over
+    //      HTTP as if they were loaded securely over HTTPS by setting the
+    //      `upgrade-insecure-requests` directive.
+    //      Please note that `upgrade-insecure-requests` does not ensure
+    //      HTTPS for the top-level navigation. If you want to force the
+    //      website itself to be loaded over HTTPS you must include the
+    //      `Strict-Transport-Security` header.
+    //
+    // To make your CSP implementation easier, you can use an online CSP header
+    // generator such as:
+    // https://report-uri.com/home/generate/
+    //
+    // It is encouraged that you validate your CSP header using a CSP validator
+    // such as:
+    // https://csp-evaluator.withgoogle.com
+    //
+    // https://csp.withgoogle.com/docs/
+    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Security-Policy
+    // https://www.html5rocks.com/en/tutorials/security/content-security-policy/
+    // https://www.w3.org/TR/CSP/
     //
     // - Use FileTypesAsset property to exclude some file types
     property ContentSecurityPolicy: SockString
       read FContentSecurityPolicy write FContentSecurityPolicy;
 
-    /// See TStrictSSL
-    property StrictSSL: TStrictSSL read FStrictSSL write FStrictSSL;
-
-    /// See TGZipLevel
-    property GZipLevel: TGZipLevel read FGZipLevel write SetGZipLevel;
+    /// See TBoilerplateOption.bpoEnableReferrerPolicy
+    property ReferrerPolicy: SockString read FReferrerPolicy
+      write FReferrerPolicy;
 
     /// See TBoilerplateOption.bpoAllowCrossOriginImages
     property FileTypesImage: RawUTF8 read FFileTypesImage
       write SetFileTypesImage;
 
     /// See TBoilerplateOption.bpoAllowCrossOriginFonts
-    property FileTypesFont: RawUTF8 read FFileTypesFont
-      write SetFileTypesFont;
-
-    /// See TBoilerplateOption.bpoSetXUACompatible, .bpoSetXFrameOptions,
-    // .bpoEnableXSSFilter and ContentSecurityPolicy
-    property FileTypesAsset: RawUTF8 read FFileTypesAsset
-      write SetFileTypesAsset;
+    property FileTypesFont: RawUTF8 read FFileTypesFont write SetFileTypesFont;
 
     /// See TBoilerplateOption.bpoForceMIMEType
     property ForceMIMETypes: RawUTF8 read FForceMIMETypes
@@ -653,6 +823,10 @@ type
     /// TBoilerplateOption.bpoForceUTF8Charset
     property FileTypesRequiredCharSet: RawUTF8 read FFileTypesRequiredCharSet
       write SetFileTypesRequiredCharSet;
+
+    /// TBoilerplateOption.bpoForceGZipHeader
+    property FileTypesForceGZipHeader: RawUTF8 read FFileTypesForceGZipHeader
+      write SetFileTypesForceGZipHeader;
 
     /// TBoilerplateOption.bpoDelegateBlocked
     property FileTypesBlocked: RawUTF8 read FFileTypesBlocked
@@ -666,31 +840,12 @@ type
     property MangledEncodingHeaderValues: RawUTF8
       read FMangledEncodingHeaderValues write SetMangledEncodingHeaderValues;
 
-    /// TBoilerplateOption.bpoEnableGZipByMIMETypes
-    property GZippedMIMETypes: RawUTF8 read FGZippedMIMETypes
-      write SetGZippedMIMETypes;
-
-    /// TBoilerplateOption.bpoForceGZipHeader
-    property FileTypesForceGZipHeader: RawUTF8 read FFileTypesForceGZipHeader
-      write SetFileTypesForceGZipHeader;
-
     /// TBoilerplateOption.bpoSetExpires
     property Expires: RawUTF8 read FExpires write SetExpires;
-
-    /// If this folder is not empty, all assets will be pre-saved as
-    // files into this folder. To minimize disk IO operations file attributes
-    // Created, Modified and Size (size only for not gzipped assets) will
-    // be checked before saving.
-    // The STATICFILE_CONTENT_TYPE will be used to inform the lower level API
-    // to send the responce as file content. For files without compression
-    // 'cache.plain' sub-folder is used, for files with GZip compression
-    // 'cache.gz' sub-folder is used with .gz suffix added to each file. All
-    // files will be stored only once or if their Created, Modified or Size
-    // attributes differ from mem-cached variant.
-    property StaticRoot: TFileName read FStaticRoot write FStaticRoot;
   end;
 
 const
+
   /// See TBoilerplateOption
   DEFAULT_BOILERPLATE_OPTIONS: TBoilerplateOptions = [
     bpoAllowCrossOrigin,
@@ -701,33 +856,44 @@ const
     bpoDelegateNotFoundTo404,
     bpoSetXUACompatible,
     bpoForceMIMEType,
-    bpoForceTextUTF8Charset,
     bpoForceUTF8Charset,
+    bpoForceTextUTF8Charset,
     bpoSetXFrameOptions,
     bpoDelegateBlocked,
     bpoPreventMIMESniffing,
     bpoEnableXSSFilter,
+    bpoEnableReferrerPolicy,
     bpoDeleteXPoweredBy,
+    bpoFixMangledAcceptEncoding,
+    bpoForceGZipHeader,
     bpoSetCachePublic,
+    bpoSetCacheNoTransform,
     bpoSetCacheMaxAge,
     bpoEnableCacheByLastModified,
-    bpoEnableCacheBusting,
     bpoSetExpires,
+    bpoEnableCacheBusting,
     bpoDelegateRootToIndex,
     bpoDeleteServerInternalState,
     bpoVaryAcceptEncoding];
 
+  /// See TWWWRewrite
+  DEFAULT_WWW_REWRITE: TWWWRewrite = wwwSuppress;
+
+  /// See TStrictSSL
+  DEFAULT_STRICT_SLL: TStrictSSL = strictSSLOff;
+
   /// See TBoilerplateHTTPServer.ContentSecurityPolicy
   DEFAULT_CONTENT_SECURITY_POLICY: SockString = '';
 
-  /// See TStrictSSL
-  DEFAULT_STRICT_SLL: TStrictSSL = strictSSLOff;
+  CONTENT_SECURITY_POLICY_STRICT =
+    'default-src ''self''; ' +
+    'base-uri ''none''; ' +
+    'form-action ''self''; ' +
+    'frame-ancestors ''none''; ' +
+    'upgrade-insecure-requests';
 
-  /// See TWWWRewrite
-  DEFAULT_WWW_REWRITE:TWWWRewrite = wwwSuppress;
-
-  /// See TGZipLevel
-  DEFAULT_GZIP_LEVEL: TGZipLevel = High(TGZipLevel);
+  /// See TBoilerplateHTTPServer.ReferrerPolicy
+  DEFAULT_REFERRER_POLICY: SockString = 'no-referrer-when-downgrade';
 
   /// See TBoilerplateHTTPServer.FileTypesImage
   DEFAULT_FILE_TYPES_IMAGE =
@@ -737,21 +903,17 @@ const
   DEFAULT_FILE_TYPES_FONT =
     'eot,otf,ttc,ttf,woff,woff2';
 
-  /// See TBoilerplateHTTPServer.FileTypesAsset
-  DEFAULT_FILE_TYPES_ASSET =
-    'appcache,atom,bbaw,bmp,crx,css,cur,eot,f4a,f4b,f4p,f4v,flv,geojson,gif,' +
-    'htc,ico,jpeg,jpg,js,json,jsonld,m4a,m4v,manifest,map,mp4,oex,oga,ogg,' +
-    'ogv,opus,otf,pdf,png,rdf,rss,safariextz,svg,svgz,swf,topojson,ttc,ttf,' +
-    'txt,vcard,vcf,vtt,webapp,webm,webmanifest,webp,woff,woff2,xloc,xml,xpi';
-
   /// See TBoilerplateHTTPServer.FileTypesRequiredCharSet
   DEFAULT_FILE_TYPES_REQUIRED_CHARSET =
-    'atom,bbaw,css,geojson,js,json,jsonld,manifest,rdf,rss,topojson,vtt,' +
-    'webapp,webmanifest,xloc,xml';
+    'appcache,bbaw,css,htc,ics,js,json,manifest,map,markdown,md,mjs,topojson,' +
+    'vtt,vcard,vcf,webmanifest,xloc';
+
+  /// See TBoilerplateHTTPServer.FileTypesForceGZipHeader
+  DEFAULT_FILE_TYPES_FORCE_GZIP_HEADER = 'svgz';
 
   /// See TBoilerplateHTTPServer.FileTypesBlocked
   DEFAULT_FILE_TYPES_BLOCKED =
-    'bak,conf,dist,fla,inc,ini,log,psd,sh,sql,swo,swp';
+    'bak,conf,dist,fla,inc,ini,log,orig,psd,sh,sql,swo,swp';
 
   /// See TBoilerplateHTTPServer.MangledEncodingHeaders
   DEFAULT_MANGLED_ENCODING_HEADERS =
@@ -765,22 +927,6 @@ const
     '~~~~~~~~|~~~~~~~~~|~~~~~~~~~~|~~~~~~~~~~~|~~~~~~~~~~~~|~~~~~~~~~~~~~|' +
     '----|-----|------|-------|--------|---------|----------|-----------|' +
     '------------|-------------';
-
-  /// TBoilerplateHTTPServer.GZippedMIMETypes
-  DEFAULT_GZIPPED_MIME_TYPES =
-    'application/atom+xml,application/javascript,application/json,' +
-    'application/ld+json,application/manifest+json,application/rdf+xml,' +
-    'application/rss+xml,application/schema+json,application/vnd.geo+json,' +
-    'application/vnd.ms-fontobject,application/x-font-ttf,' +
-    'application/xhtml+xml,application/x-javascript,application/xml,' +
-    'application/x-web-app-manifest+json,font/eot,font/opentype,image/bmp,' +
-    'image/svg+xml,image/vnd.microsoft.icon,image/x-icon,text/cache-manifest,' +
-    'text/css,text/html,text/javascript,text/plain,text/vcard,' +
-    'text/vnd.rim.location.xloc,text/vtt,text/x-component,' +
-    'text/x-cross-domain-policy,text/xml';
-
-  /// See TBoilerplateHTTPServer.FileTypesForceGZipHeader
-  DEFAULT_FILE_TYPES_FORCE_GZIP_HEADER = 'svgz';
 
   /// See TBoilerplateHTTPServer.Expires
   DEFAULT_EXPIRES =
@@ -799,8 +945,9 @@ const
     'application/json=0s'#10 +
     'application/ld+json=0s'#10 +
     'application/schema+json=0s'#10 +
-    'application/vnd.geo+json=0s'#10 +
+    'application/geo+json=0s'#10 +
     'application/xml=0s'#10 +
+    'text/calendar=0s'#10 +
     'text/xml=0s'#10 +
 
     // Favicon (cannot be renamed!) and cursor images
@@ -820,6 +967,9 @@ const
     'application/x-web-app-manifest+json=0s'#10 +
     'text/cache-manifest=0s'#10 +
 
+    // Markdown
+    'text/markdown=0s'#10 +
+
     // Media files
     'audio/ogg=1m'#10 +
     'image/bmp=1m'#10 +
@@ -832,7 +982,13 @@ const
     'video/ogg=1m'#10 +
     'video/webm=1m'#10 +
 
+    // WebAssembly
+    'application/wasm=1y'#10 +
+
     // Web fonts
+
+    // Collection
+    'font/collection=1m'#10 +
 
     // Embedded OpenType (EOT)
     'application/vnd.ms-fontobject=1m'#10 +
@@ -840,9 +996,11 @@ const
 
     // OpenType
     'font/opentype=1m'#10 +
+    'font/otf=1m'#10 +
 
     // TrueType
     'application/x-font-ttf=1m'#10 +
+    'font/ttf=1m'#10 +
 
     // Web Open Font Format (WOFF) 1.0
     'application/font-woff=1m'#10 +
@@ -851,6 +1009,7 @@ const
 
     // Web Open Font Format (WOFF) 2.0
     'application/font-woff2=1m'#10 +
+    'application/woff2=1m'#10 +
 
     // Other
     'text/x-cross-domain-policy=1w'#10 +
@@ -858,36 +1017,22 @@ const
 
 implementation
 
-uses
-  SynZip;
+// The time constants were introduced in Delphi 2009 and
+// missed in Delphi 5/6/7/2005/2006/2007, or FPC
+{$IF DEFINED(FPC) OR (CompilerVersion < 20)}
+const
+  HoursPerDay = 24;
+  MinsPerHour = 60;
+  SecsPerMin  = 60;
+  MinsPerDay  = HoursPerDay * MinsPerHour;
+  SecsPerDay  = MinsPerDay * SecsPerMin;
+  SecsPerHour = SecsPerMin * MinsPerHour;
+{$IFEND}
 
-function IdemPChar(P, Up: PAnsiChar): Boolean;
-// if the beginning of p^ is same as up^ (ignore case - up^ must be already Upper)
-var
-  C: AnsiChar;
-begin
-  Result := False;
-  if P = nil then
-    Exit;
-  if (Up <> nil) and (Up^ <> #0) then
-    repeat
-      C := P^;
-      if Up^ <> C then
-        if C in ['a'..'z'] then begin
-          Dec(C, 32);
-          if Up^ <> C then
-            Exit;
-        end else
-          Exit;
-      Inc(Up);
-      Inc(P);
-    until Up^ = #0;
-  Result := True;
-end;
-
-// This code taken from SynCrtSock.pas - not found in interface secion
+// This is copy from SynCrtSock.pas which is not available in interface secion
 function GetHeaderValue(var headers: SockString; const upname: SockString;
   deleteInHeaders: boolean): SockString;
+    {$IFDEF HASINLINE}inline;{$ENDIF}
 var i,j,k: integer;
 begin
   result := '';
@@ -907,7 +1052,7 @@ begin
       while headers[i]=' ' do inc(i);
       result := copy(headers,i,k-i);
       if deleteInHeaders then begin
-        while true do
+        while true do // delete also ending #13#10
           if (headers[k]=#0) or (headers[k]>=' ') then
             break else
             inc(k);
@@ -947,6 +1092,8 @@ begin
 end;
 
 function TBoilerplateHTTPServer.ExpiresToSecs(const Value: RawUTF8): PtrInt;
+const
+  SecsPerMonth = 2629746; // SecsPerDay * 365.2425 / 12
 var
   LastChar: AnsiChar;
   Scale: PtrInt;
@@ -963,7 +1110,7 @@ begin
     'H', 'h': Scale := SecsPerHour;
     'D', 'd': Scale := SecsPerDay;
     'W', 'w': Scale := 7 * SecsPerDay;
-    'M', 'm': Scale := 2629746; // SecsPerDay * 365.2425 / 12
+    'M', 'm': Scale := SecsPerMonth;
     'Y', 'y': Scale := 365 * SecsPerDay;
     else begin
       Result := UTF8ToInteger(Value);
@@ -986,15 +1133,18 @@ function TBoilerplateHTTPServer.FindCustomOptions(const URLPath: RawUTF8;
 var
   Index: Integer;
 
-  function FindPrefix(const UpperURL: RawUTF8): Integer;
+  function FindPrefix(const Prefixes: TSynNameValue;
+    const UpperURL: RawUTF8): Integer;
+      {$IFDEF HASINLINE}inline;{$ENDIF}
   begin
-    for Result := 0 to FCustomOptionPrefixes.Count - 1 do
-      if IdemPChar(Pointer(UpperURL),
-        Pointer(FCustomOptionPrefixes.List[Result].Name)) then Exit;
+    for Result := 0 to Prefixes.Count - 1 do
+      if IdemPChar(Pointer(UpperURL), Pointer(Prefixes.List[Result].Name)) then
+        Exit;
     Result := -1;
   end;
 
   function StrToOptions(const Str: RawUTF8): TBoilerplateOptions;
+    {$IFDEF HASINLINE}inline;{$ENDIF}
   begin
     MoveFast(Str[1], Result, SizeOf(Result));
   end;
@@ -1007,7 +1157,7 @@ begin
     Exit;
   end;
 
-  Index := FindPrefix(UpperCase(URLPath));
+  Index := FindPrefix(FCustomOptionPrefixes, UpperCase(URLPath));
   if Index >= 0 then
   begin
     Result := StrToOptions(FCustomOptionPrefixes.List[Index].Value);
@@ -1038,32 +1188,12 @@ var
   Index: Integer;
 begin
   Result := ContentType;
-  Index := PosEx(';', Result);
-  if Index > 0 then
-    Delete(Result, Index, MaxInt);
-end;
-
-procedure TBoilerplateHTTPServer.CompressGZip(var DataRawByteString;
-  const Level: Integer);
-const
-  GZIP_HEADER: array [0..2] of Cardinal = ($88B1F, 0, 0);
-var
-  L: Integer;
-  P: PAnsiChar;
-  Buffer: AnsiString;
-  Data: ZipString absolute DataRawByteString;
-begin
-  L := Length(Data);
-  SetString(Buffer, nil, L + 128 + L shr 3); // maximum possible memory required
-  P := Pointer(Buffer);
-  MoveFast(GZIP_HEADER, P^, 10);
-  Inc(P, 10);
-  Inc(P, CompressMem(Pointer(Data), P, L, Length(Buffer) - 20, Level));
-  PCardinal(P)^ := crc32(0, Pointer(Data), L);
-  Inc(P, 4);
-  PCardinal(P)^ := L;
-  Inc(P, 4);
-  SetString(Data, PAnsiChar(Pointer(Buffer)), P - Pointer(Buffer));
+  if Result <> '' then
+  begin
+    Index := PosEx(';', Result);
+    if Index > 0 then
+      Delete(Result, Index, MaxInt);
+  end;
 end;
 
 constructor TBoilerplateHTTPServer.Create(aServer: TSQLRestServer;
@@ -1071,23 +1201,6 @@ constructor TBoilerplateHTTPServer.Create(aServer: TSQLRestServer;
 begin
   inherited Create(aServer, aDefinition);
   Init;
-end;
-
-procedure TBoilerplateHTTPServer.CreateGZippedAssets;
-const
-  GZIP_LEVELS: array[TGZipLevel] of Integer = (0, 1, 2, 3, 4, 5, 6, 7, 8, 9);
-var
-  Index: Integer;
-  LContent: RawByteString;
-begin
-  FGZippedAssets.Init(True);
-  for Index := 0 to FAssets.Count - 1 do
-    with FAssets.Assets[Index] do
-    begin
-      LContent := Content;
-      CompressGZip(LContent, GZIP_LEVELS[FGZipLevel]);
-      FGZippedAssets.Add(Path, LContent);
-    end;
 end;
 
 constructor TBoilerplateHTTPServer.Create(const aPort: AnsiString;
@@ -1116,29 +1229,27 @@ end;
 procedure TBoilerplateHTTPServer.Init;
 begin
   FAssets.Init;
-  FGZippedAssets.Init(True);
   FOptions := DEFAULT_BOILERPLATE_OPTIONS;
   FContentSecurityPolicy := DEFAULT_CONTENT_SECURITY_POLICY;
   FStrictSSL := DEFAULT_STRICT_SLL;
+  FReferrerPolicy := DEFAULT_REFERRER_POLICY;
   FWWWRewrite := DEFAULT_WWW_REWRITE;
-  FGZipLevel := DEFAULT_GZIP_LEVEL;
   SetFileTypesImage(DEFAULT_FILE_TYPES_IMAGE);
   SetFileTypesFont(DEFAULT_FILE_TYPES_FONT);
-  SetFileTypesAsset(DEFAULT_FILE_TYPES_ASSET);
   SetForceMIMETypes(MIME_CONTENT_TYPES);
   SetFileTypesRequiredCharSet(DEFAULT_FILE_TYPES_REQUIRED_CHARSET);
   SetFileTypesBlocked(DEFAULT_FILE_TYPES_BLOCKED);
   SetMangledEncodingHeaders(DEFAULT_MANGLED_ENCODING_HEADERS);
   SetMangledEncodingHeaderValues(DEFAULT_MANGLED_ENCODING_HEADER_VALUES);
-  SetGZippedMIMETypes(DEFAULT_GZIPPED_MIME_TYPES);
   SetFileTypesForceGZipHeader(DEFAULT_FILE_TYPES_FORCE_GZIP_HEADER);
   SetExpires(DEFAULT_EXPIRES);
   FCustomOptions.Init(False);
   FCustomOptionPrefixes.Init(False);
 end;
 
-function TBoilerplateHTTPServer.IsContentModified(Context: THttpServerRequest;
-  const Asset: PAsset; const CheckETag, CheckModified: Boolean): Boolean;
+function TBoilerplateHTTPServer.WasModified(Context: THttpServerRequest;
+  Asset: PAsset; const Encoding: TAssetEncoding;
+  const CheckETag, CheckModified: Boolean): Boolean;
 const
   SERVER_HASH: RawUTF8 = '"00000000"';
 var
@@ -1151,9 +1262,16 @@ begin
 
   if not Result and CheckETag then
   begin
-    SetRawUTF8(ServerHash, PRawUTF8(SERVER_HASH), Length(SERVER_HASH));
-    BinToHexDisplay(@Asset.ContentHash,
-      Pointer(@ServerHash[2]), SizeOf(Cardinal));
+    FastSetString(ServerHash, PRawUTF8(SERVER_HASH), Length(SERVER_HASH));
+    if Encoding = aeIdentity then
+      BinToHexDisplay(@Asset.Hash,
+        Pointer(@ServerHash[2]), SizeOf(Cardinal))
+    else if Encoding = aeGZip then
+      BinToHexDisplay(@Asset.GZipHash,
+        Pointer(@ServerHash[2]), SizeOf(Cardinal))
+    else if Encoding = aeBrotli then
+      BinToHexDisplay(@Asset.BrotliHash,
+        Pointer(@ServerHash[2]), SizeOf(Cardinal));
     ClientHash := FindIniNameValue(Pointer(Context.InHeaders),
       'IF-NONE-MATCH: ');
     Result := ClientHash <> ServerHash;
@@ -1175,44 +1293,45 @@ begin
   end;
 end;
 
-function TBoilerplateHTTPServer.IsGZipAccepted(Context: THttpServerRequest;
-  const FixMangled: Boolean): Boolean;
+procedure TBoilerplateHTTPServer.GetAcceptedEncodings(
+  Context: THttpServerRequest; const FixMangled: Boolean;
+  out GZipAccepted, BrotliAccepted: Boolean);
 var
   AcceptEncoding: RawUTF8;
   Index: Integer;
 begin
-  AcceptEncoding := LowerCase(Trim(FindIniNameValue(
-    Pointer(Context.InHeaders),'ACCEPT-ENCODING:')));
-  Result := PosEx('gzip', AcceptEncoding) > 0;
+  AcceptEncoding := LowerCase(FindIniNameValue(
+    Pointer(Context.InHeaders), 'ACCEPT-ENCODING:'));
+  GZipAccepted := PosEx('gzip', AcceptEncoding) > 0;
+  BrotliAccepted := PosEx('br', AcceptEncoding) > 0;
 
-  if (not FixMangled) or Result then Exit;
+  if (GZipAccepted or BrotliAccepted) and not FixMangled then Exit;
 
   for Index := Low(FMangledEncodingHeadersArray) to
     High(FMangledEncodingHeadersArray) do
   begin
-    AcceptEncoding := LowerCase(Trim(FindIniNameValue(
+    AcceptEncoding := LowerCase(FindIniNameValue(
       Pointer(Context.InHeaders),
-      PAnsiChar(FMangledEncodingHeadersArray[Index]))));
+      PAnsiChar(FMangledEncodingHeadersArray[Index])));
     if AcceptEncoding <> '' then
     begin
-      Result := FastInArray(AcceptEncoding, FMangledEncodingHeaderValuesArray);
-      if Result then Exit;
+      GZipAccepted := FastInArray(AcceptEncoding,
+        FMangledEncodingHeaderValuesArray);
+      if GZipAccepted then Exit;
     end;
   end;
-
-  Result := False;
 end;
 
 procedure TBoilerplateHTTPServer.LoadFromResource(const ResName: string);
 begin
-  FAssets.DecompressFromResource(ResName);
-  CreateGZippedAssets;
+  FAssets.LoadFromResource(ResName);
 end;
 
 procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URLPath: RawUTF8;
-  CustomOptions: TBoilerplateOptions);
+  const CustomOptions: TBoilerplateOptions);
 
-  function GetOptionsValue: RawUTF8;
+  function GetOptionsValue(const CustomOptions: TBoilerplateOptions): RawUTF8;
+    {$IFDEF HASINLINE}inline;{$ENDIF}
   begin
     SetLength(Result, SizeOf(CustomOptions));
     MoveFast(CustomOptions, Result[1], SizeOf(CustomOptions));
@@ -1221,9 +1340,10 @@ procedure TBoilerplateHTTPServer.RegisterCustomOptions(const URLPath: RawUTF8;
 begin
   if Copy(URLPath, Length(URLPath), 1) = '*' then
     FCustomOptionPrefixes.Add(
-      UpperCase(Copy(URLPath, 1, Length(URLPath) - 1)), GetOptionsValue)
+      UpperCase(Copy(URLPath, 1, Length(URLPath) - 1)),
+        GetOptionsValue(CustomOptions))
   else
-    FCustomOptions.Add(URLPath, GetOptionsValue);
+    FCustomOptions.Add(URLPath, GetOptionsValue(CustomOptions));
 end;
 
 procedure TBoilerplateHTTPServer.RegisterCustomOptions(
@@ -1240,30 +1360,43 @@ const
   HTTPS: array[Boolean] of SockString = ('', 's');
 var
   Asset: PAsset;
+  AssetEncoding: TAssetEncoding;
+  AcceptedEncodingsDefined: Boolean;
+  LOptions: TBoilerplateOptions;
   Path, PathLowerCased, Ext, Host: SockString;
+  GZipAccepted, BrotliAccepted: Boolean;
   OriginExists, CORSEnabled: Boolean;
   ContentType, ForcedContentType, CacheControl: RawUTF8;
-  GZippedContent: RawByteString;
   Expires: PtrInt;
-  LOptions: TBoilerplateOptions;
+  ExpiresDefined: Boolean;
   Vary: RawUTF8;
 begin
-  if (bpoDelegateRootToIndex in FOptions) and
-    ((Context.URL = '') or (Context.URL = '/')) then
-    with Context do
-      if bpoDelegateIndexToInheritedDefault in FOptions then
-        Prepare('/Default', Method, InHeaders, InContent, InContentType, '')
-      else
-        Prepare('/index.html', Method, InHeaders, InContent, InContentType, '');
-
-  SplitURL(Context.URL, Path, Ext, bpoEnableCacheBusting in FOptions);
+  SplitURL(Context.URL, Path, Ext, bpoEnableCacheBusting in FOptions,
+    bpoEnableCacheBustingBeforeExt in FOptions);
 
   LOptions := FindCustomOptions(Path, FOptions);
+
+  if (bpoForceHTTPS in LOptions) and not Context.UseSSL then
+    if not (bpoForceHTTPSExceptLetsEncrypt in LOptions) or
+      not (IdemPCharArray(Pointer(Path), [
+        '/.WELL-KNOWN/ACME-CHALLENGE/',
+        '/.WELL-KNOWN/CPANEL-DCV/',
+        '/.WELL-KNOWN/PKI-VALIDATION/']) >= 0) then
+    begin
+      Host := FindHost(Context);
+      if Host <> '' then
+      begin
+        AddCustomHeader(Context, 'Location', SockString(
+          FormatUTF8('https://%%', [Host, Path])));
+        Result := HTTP_MOVEDPERMANENTLY;
+        Exit;
+      end;
+    end;
 
   if FWWWRewrite = wwwSuppress then
   begin
     Host := FindHost(Context);
-    if (Host <> '') and IdemPChar(PAnsiChar(Host), 'WWW.') then
+    if (Host <> '') and IdemPChar(Pointer(Host), 'WWW.') then
     begin
       Delete(Host, 1, 4);
       AddCustomHeader(Context, 'Location', SockString(
@@ -1276,7 +1409,7 @@ begin
   if FWWWRewrite = wwwForce then
   begin
     Host := FindHost(Context);
-    if (Host <> '') and not IdemPChar(PAnsiChar(Host), 'WWW.') then
+    if (Host <> '') and not IdemPChar(Pointer(Host), 'WWW.') then
     begin
       Host := 'www.' + Host;
       AddCustomHeader(Context, 'Location', SockString(
@@ -1286,17 +1419,20 @@ begin
     end;
   end;
 
-  if (bpoForceHTTPS in LOptions) and not Context.UseSSL then
-  begin
-    Host := FindHost(Context);
-    if Host <> '' then
-    begin
-      AddCustomHeader(Context, 'Location', SockString(
-        FormatUTF8('https://%%', [Host, Path])));
-      Result := HTTP_MOVEDPERMANENTLY;
-      Exit;
-    end;
-  end;
+  if (bpoDelegateRootToIndex in LOptions) and
+    ((Context.URL = '') or (Context.URL = '/')) then
+    with Context do
+      if bpoDelegateIndexToInheritedDefault in LOptions then
+      begin
+        Prepare('/Default', Method,
+          InHeaders, InContent, InContentType, '', UseSSL);
+        Path := '/Default';
+      end else begin
+        Prepare('/index.html', Method,
+          InHeaders, InContent, InContentType, '', UseSSL);
+        Path := '/index.html';
+        Ext := '.html';
+      end;
 
   Asset := FAssets.Find(Path);
   if Asset = nil then
@@ -1320,48 +1456,106 @@ begin
     end;
   end;
 
-  if Asset <> nil then
+  GZipAccepted := False;
+  BrotliAccepted := False;
+  AssetEncoding := aeIdentity;
+  AcceptedEncodingsDefined := False;
+
+  if Asset = nil then
   begin
-    if not IsContentModified(Context, Asset, bpoEnableCacheByETag in LOptions,
+    Result := inherited Request(Context);
+    ContentType := ContentTypeWithoutCharset(Context.OutContentType);
+  end else begin
+    GetAcceptedEncodings(Context, bpoFixMangledAcceptEncoding in LOptions,
+      GZipAccepted, BrotliAccepted);
+    AcceptedEncodingsDefined := True;
+
+    if Asset.BrotliExists and BrotliAccepted then
+      AssetEncoding := aeBrotli
+    else if Asset.GZipExists and GZipAccepted then
+      AssetEncoding := aeGZip;
+
+    if not WasModified(Context, Asset, AssetEncoding,
+      bpoEnableCacheByETag in LOptions,
       bpoEnableCacheByLastModified in LOptions) then
     begin
       Result := HTTP_NOTMODIFIED;
       Exit;
     end;
+
     ContentType := ContentTypeWithoutCharset(Asset.ContentType);
     Context.OutContentType := Asset.ContentType;
-    Context.OutContent := Asset.Content;
+
+    if AssetEncoding = aeGZip then
+    begin
+      AddCustomHeader(Context, 'Content-Encoding', 'gzip');
+      Context.OutContent := Asset.GZipEncoding;
+    end else if AssetEncoding = aeBrotli then
+    begin
+      AddCustomHeader(Context, 'Content-Encoding', 'br');
+      Context.OutContent := Asset.BrotliEncoding;
+    end else
+      Context.OutContent := Asset.Content;
+
     Result := HTTP_SUCCESS;
-  end else begin
-    Result := inherited Request(Context);
-    ContentType := ContentTypeWithoutCharset(Context.OutContentType);
   end;
 
   if ((Result = HTTP_BADREQUEST) and (bpoDelegateBadRequestTo404 in LOptions)) or
     ((Result = HTTP_FORBIDDEN) and (bpoDelegateForbiddenTo404 in LOptions)) or
     ((Result = HTTP_NOTFOUND) and (bpoDelegateNotFoundTo404 in LOptions)) or
     ((bpoDelegateBlocked in LOptions) and
-      FastInArray(Ext, FFileTypesBlockedArray)) then
+      (FastInArray(Ext, FFileTypesBlockedArray) or
+      ((Path <> '') and (
+         (Path[Length(Path)] = '~') or
+         (Path[Length(Path)] = '#'))))) then
   begin
     if bpoDelegate404ToInherited_404 in LOptions then
     begin
       with Context do
-        Prepare('/404', Method, InHeaders, InContent, InContentType, '');
+        Prepare('/404', Method, InHeaders, InContent, InContentType, '',
+          UseSSL);
+
       Result := inherited Request(Context);
+      ContentType := ContentTypeWithoutCharset(Context.OutContentType);
+
       if Result = HTTP_SUCCESS then
         Result := HTTP_NOTFOUND;
-      ContentType := ContentTypeWithoutCharset(Context.OutContentType);
     end else begin
       with Context do
-        Prepare('/404.html', Method, InHeaders, InContent, InContentType, '');
+        Prepare('/404.html', Method, InHeaders, InContent, InContentType, '',
+          UseSSL);
+
       Asset := FAssets.Find('/404.html');
       if Asset <> nil then
       begin
-        Ext := '.html';
-        Context.OutContentType := Asset.ContentType;
-        Context.OutContent := Asset.Content;
         ContentType := ContentTypeWithoutCharset(Asset.ContentType);
+        Context.OutContentType := Asset.ContentType;
+
+        if not AcceptedEncodingsDefined then
+          GetAcceptedEncodings(Context, bpoFixMangledAcceptEncoding in LOptions,
+            GZipAccepted, BrotliAccepted);
+
+        if Asset.BrotliExists and BrotliAccepted then
+          AssetEncoding := aeBrotli
+        else if Asset.GZipExists and GZipAccepted then
+          AssetEncoding := aeGZip
+        else
+          AssetEncoding := aeIdentity;
+
+        DeleteCustomHeader(Context, 'CONTENT-ENCODING:');
+        if AssetEncoding = aeGZip then
+        begin
+          AddCustomHeader(Context, 'Content-Encoding', 'gzip');
+          Context.OutContent := Asset.GZipEncoding;
+        end else if AssetEncoding = aeBrotli then
+        begin
+          AddCustomHeader(Context, 'Content-Encoding', 'br');
+          Context.OutContent := Asset.BrotliEncoding;
+        end else
+          Context.OutContent := Asset.Content;
+
         Result := HTTP_NOTFOUND;
+        Ext := '.html';
       end;
     end;
   end;
@@ -1376,23 +1570,16 @@ begin
     end;
   end;
 
-  GZippedContent := #0;
-
-  if (bpoForceGZipHeader in LOptions) and
+  if (bpoForceGZipHeader in LOptions) and (AssetEncoding = aeIdentity) and
     FastInArray(Ext, FFileTypesForceGZipHeaderArray) then
       AddCustomHeader(Context, 'Content-Encoding', 'gzip');
 
-  if (bpoEnableGZipByMIMETypes in LOptions) and
-    IsGZipAccepted(Context, bpoFixMangledAcceptEncoding in LOptions) and
-      FastInArray(ContentType, FGZippedMIMETypesArray) then
-      begin
-        GZippedContent := FGZippedAssets.Value(Path, #0);
-        if GZippedContent <> #0 then
-        begin
-          AddCustomHeader(Context, 'Content-Encoding', 'gzip');
-          Context.OutContent := GZippedContent;
-        end
-      end;
+  if (bpoForceUTF8Charset in LOptions) and
+    FastInArray(Ext, FFileTypesRequiredCharSetValues) then
+  begin
+    if PosEx('charset', LowerCase(Context.OutContentType)) = 0 then
+      Context.OutContentType := Context.OutContentType + '; charset=UTF-8';
+  end;
 
   if bpoForceTextUTF8Charset in LOptions then
   begin
@@ -1400,13 +1587,6 @@ begin
       Context.OutContentType := 'text/html; charset=UTF-8';
     if Context.OutContentType = 'text/plain' then
       Context.OutContentType := 'text/plain; charset=UTF-8';
-  end;
-
-  if (bpoForceUTF8Charset in LOptions) and
-    FastInArray(Ext, FFileTypesRequiredCharSetValues) then
-  begin
-    if PosEx('charset', LowerCase(Context.OutContentType)) = 0 then
-      Context.OutContentType := Context.OutContentType + '; charset=UTF-8';
   end;
 
   CORSEnabled := False;
@@ -1438,40 +1618,48 @@ begin
     AddCustomHeader(Context, 'Timing-Allow-Origin', '*');
 
   if (bpoSetXUACompatible in LOptions) and
-    not FastInArray(Ext, FFileTypesAssetArray) then
+    IdemPChar(Pointer(ContentType), 'TEXT/HTML') then
       AddCustomHeader(Context, 'X-UA-Compatible', 'IE=edge');
 
-  if bpoSetP3P in LOptions then
-    AddCustomHeader(Context, 'P3P', 'policyref="/w3c/p3p.xml", CP="IDC ' +
-      'DSP COR ADM DEVi TAIi PSA PSD IVAi IVDi CONi HIS OUR IND CNT"');
-
   if (bpoSetXFrameOptions in LOptions) and
-    not FastInArray(Ext, FFileTypesAssetArray) then
+    IdemPChar(Pointer(ContentType), 'TEXT/HTML') then
       AddCustomHeader(Context, 'X-Frame-Options', 'DENY');
 
-  if (ContentSecurityPolicy <> '') and
-    not FastInArray(Ext, FFileTypesAssetArray) then
+  if (FContentSecurityPolicy <> '') and
+    IdemPChar(Pointer(ContentType), 'TEXT/HTML') then
       AddCustomHeader(Context, 'Content-Security-Policy',
-        ContentSecurityPolicy);
+        FContentSecurityPolicy);
 
   if FStrictSSL = strictSSLOn then
-    AddCustomHeader(Context, 'Strict-Transport-Security', 'max-age=16070400');
-
-  if FStrictSSL = strictSSLIncludeSubDomains then
-    AddCustomHeader(Context, 'Strict-Transport-Security',
-      'max-age=16070400; includeSubDomains');
+    if Context.UseSSL then
+      AddCustomHeader(Context, 'Strict-Transport-Security',
+        'max-age=31536000')
+    else
+      AddCustomHeader(Context, 'Strict-Transport-Security',
+        'max-age=16070400')
+  else if FStrictSSL = strictSSLIncludeSubDomains then
+    if Context.UseSSL then
+      AddCustomHeader(Context, 'Strict-Transport-Security',
+        'max-age=31536000; includeSubDomains; preload')
+    else
+      AddCustomHeader(Context, 'Strict-Transport-Security',
+        'max-age=16070400; includeSubDomains');
 
   if bpoPreventMIMESniffing in LOptions then
     AddCustomHeader(Context, 'X-Content-Type-Options', 'nosniff');
 
   if (bpoEnableXSSFilter in LOptions) and
-    not FastInArray(Ext, FFileTypesAssetArray) then
+    IdemPChar(Pointer(ContentType), 'TEXT/HTML') then
       AddCustomHeader(Context, 'X-XSS-Protection', '1; mode=block');
+
+  if (bpoEnableReferrerPolicy in LOptions) and
+    IdemPChar(Pointer(ContentType), 'TEXT/HTML') then
+      AddCustomHeader(Context, 'Referrer-Policy', FReferrerPolicy);
 
   if bpoDeleteXPoweredBy in LOptions then
     DeleteCustomHeader(Context, 'X-POWERED-BY:');
 
-  Expires := -1;
+  ExpiresDefined := False;
 
   if [bpoSetCacheNoTransform, bpoSetCachePublic, bpoSetCachePrivate,
     bpoSetCacheNoCache, bpoSetCacheNoStore, bpoSetCacheMustRevalidate,
@@ -1500,20 +1688,21 @@ begin
     if bpoSetCacheMaxAge in LOptions then
     begin
       Expires := GetExpires(ContentType);
+      ExpiresDefined := True;
       CacheControl := CacheControl + FormatUTF8(', max-age=%', [Expires]);
     end;
 
     if CacheControl <> '' then
     begin
-      if CacheControl[1] = ',' then
-        CacheControl := Copy(CacheControl, 2, MaxInt);
-      AddCustomHeader(Context, 'Cache-Control', TrimLeft(CacheControl));
+      if (CacheControl[1] = ',') and (CacheControl[2] = ' ') then
+        CacheControl := Copy(CacheControl, 3, MaxInt);
+      AddCustomHeader(Context, 'Cache-Control', CacheControl);
     end;
   end;
 
   if bpoSetExpires in LOptions then
   begin
-    if Expires = -1 then
+    if not ExpiresDefined then
       Expires := GetExpires(ContentType);
     AddCustomHeader(Context, 'Expires',
       DateTimeToHTTPDate(NowUTC + Expires / SecsPerDay));
@@ -1522,20 +1711,23 @@ begin
   if bpoDeleteServerInternalState in LOptions then
     DeleteCustomHeader(Context, 'SERVER-INTERNALSTATE:');
 
-  if FStaticRoot <> '' then
-    SaveStaticAsset(Context, Asset, GZippedContent);
-
-  if bpoVaryAcceptEncoding in LOptions then
+  if (bpoVaryAcceptEncoding in LOptions) and
+    (Asset <> nil) and (Asset.GZipExists or Asset.BrotliExists) then
   begin
-    if FastInArray(ContentType, FGZippedMIMETypesArray) then
-    begin
-      Vary := DeleteCustomHeader(Context, 'VARY:');
-      if Vary <> '' then
-        Vary := Vary + ',Accept-Encoding'
-      else
-        Vary := 'Accept-Encoding';
-      AddCustomHeader(Context, 'Vary', Vary);
-    end;
+    Vary := DeleteCustomHeader(Context, 'VARY:');
+    if Vary <> '' then
+      Vary := Vary + ',Accept-Encoding'
+    else
+      Vary := 'Accept-Encoding';
+    AddCustomHeader(Context, 'Vary', Vary);
+  end;
+
+  if (Asset <> nil) and (FStaticRoot <> '') then
+  begin
+    AddCustomHeader(Context, 'Content-Type', Context.OutContentType);
+    Context.OutContentType := HTTP_RESP_STATICFILE;
+    Context.OutContent :=
+      SockString(Asset.SaveToFile(FStaticRoot, AssetEncoding));
   end;
 end;
 
@@ -1556,42 +1748,6 @@ begin
       FExpiresDefault := FExpiresValues.List[Index].Tag
     else
       FExpiresDefault := 0;
-  end;
-end;
-
-procedure TBoilerplateHTTPServer.ArrayFromCSV(out anArray: TRawUTF8DynArray;
-  const CSV: RawUTF8; const Prefix: RawUTF8; const Sep: AnsiChar);
-var
-  Values: PUTF8Char;
-  Value: RawUTF8;
-  ArrayDA: TDynArray;
-  ArrayCount: Integer;
-  Index: Integer;
-begin
-  ArrayDA.Init(TypeInfo(TRawUTF8DynArray), anArray, @ArrayCount);
-  Values := PUTF8Char(CSV);
-  while Values <> nil do
-  begin
-    Value := GetNextItem(Values, Sep);
-    if Value <> '' then
-    begin
-      Value := Prefix + LowerCase(Value);
-      ArrayDA.Add(Value);
-    end;
-  end;
-  ArrayDA.Sort(SortDynArrayPUTF8Char);
-  for Index := ArrayDA.Count - 1 downto 1 do
-    if anArray[Index] = anArray[Index - 1] then
-      ArrayDA.Delete(Index);
-  SetLength(anArray, ArrayDA.Count);
-end;
-
-procedure TBoilerplateHTTPServer.SetFileTypesAsset(const Value: RawUTF8);
-begin
-  if FFileTypesAsset <> Value then
-  begin
-    FFileTypesAsset := Value;
-    ArrayFromCSV(FFileTypesAssetArray, Value);
   end;
 end;
 
@@ -1651,24 +1807,6 @@ begin
   end;
 end;
 
-procedure TBoilerplateHTTPServer.SetGZipLevel(const Value: TGZipLevel);
-begin
-  if FGZipLevel <> Value then
-  begin
-    FGZipLevel := Value;
-    CreateGZippedAssets;
-  end;
-end;
-
-procedure TBoilerplateHTTPServer.SetGZippedMIMETypes(const Value: RawUTF8);
-begin
-  if FGZippedMIMETypes <> Value then
-  begin
-    FGZippedMIMETypes := Value;
-    ArrayFromCSV(FGZippedMIMETypesArray, Value, '');
-  end;
-end;
-
 procedure TBoilerplateHTTPServer.SetMangledEncodingHeaders(
   const Value: RawUTF8);
 var
@@ -1696,7 +1834,8 @@ begin
 end;
 
 procedure TBoilerplateHTTPServer.SplitURL(const URL: SockString;
-  out Path, Ext: SockString; const EnableCacheBusting: Boolean);
+  out Path, Ext: SockString;
+  const EnableCacheBusting, EnableCacheBustingBeforeExt: Boolean);
 var
   Index: Integer;
   P: PAnsiChar;
@@ -1715,13 +1854,16 @@ begin
   P := @URL[1];
   while P^ <> #0 do
   begin
-    if (P^ = '.') and (QueryPos = 0) then
-      ExtPos := Index;
-    if (P^ = '?') and (QueryPos = 0) then
-    begin
-      QueryPos := Index;
-      Break;
-    end;
+    if QueryPos = 0 then
+      if (P^ = '/') then
+        ExtPos := 0
+      else if (P^ = '.') then
+        ExtPos := Index
+      else if (P^ = '?') or (P^ = '#') then
+      begin
+        QueryPos := Index;
+        Break;
+      end;
     Inc(Index);
     Inc(P);
   end;
@@ -1743,6 +1885,31 @@ begin
         Inc(PByteArray(Ext)[Index], 32);
   end else
     Ext := '';
+
+  if EnableCacheBustingBeforeExt and (ExtPos > 0) then
+  begin
+    P := @URL[ExtPos - 1];
+    for Index := ExtPos - 1 downto 1 do
+    begin
+      if P^ = '.' then
+      begin
+        Delete(Path, Index, ExtPos - Index);
+        Break;
+      end;
+      if P^ = '/' then Break;
+      Dec(P);
+    end;
+  end;
+end;
+
+procedure TBoilerplateHTTPServer.UnregisterCustomOptions(
+  const URLPath: RawUTF8);
+begin
+  if Copy(URLPath, Length(URLPath), 1) = '*' then
+    FCustomOptionPrefixes.Delete(
+      UpperCase(Copy(URLPath, 1, Length(URLPath) - 1)))
+  else
+    FCustomOptions.Delete(URLPath);
 end;
 
 procedure TBoilerplateHTTPServer.UnregisterCustomOptions(
@@ -1752,60 +1919,6 @@ var
 begin
   for Index := Low(URLPaths) to High(URLPaths) do
     UnregisterCustomOptions(URLPaths[Index]);
-end;
-
-procedure TBoilerplateHTTPServer.UnregisterCustomOptions(const URLPath: RawUTF8);
-begin
-  if Copy(URLPath, Length(URLPath), 1) = '*' then
-    FCustomOptionPrefixes.Delete(UpperCase(Copy(URLPath, 1, Length(URLPath) - 1)))
-  else
-    FCustomOptions.Delete(URLPath);
-end;
-
-procedure TBoilerplateHTTPServer.SaveStaticAsset(
-  const Context: THttpServerRequest; const Asset: PAsset;
-  const GZippedContent: RawByteString);
-var
-  Index: Integer;
-  FileName: TFileName;
-  LCreated, LModified: TDateTime;
-  FileNotModified: Boolean;
-begin
-  if Asset = nil then Exit;
-  if FStaticRoot = '' then Exit;
-
-  FileName := UTF8ToString(Asset.Path);
-  if PathDelim <> '/' then
-    for Index := 1 to Length(FileName) do
-      if FileName[Index] = '/' then
-        FileName[Index] := PathDelim;
-
-  AddCustomHeader(Context, 'Content-Type', Context.OutContentType);
-  Context.OutContentType := HTTP_RESP_STATICFILE;
-
-  if GZippedContent = #0 then begin
-    FileName := IncludeTrailingPathDelimiter(FStaticRoot) +
-      'cache.plain' + FileName;
-    Asset.SaveToFile(FileName);
-  end else begin
-    FileName := Format('%scache.gz%s.%d.gz', [
-      IncludeTrailingPathDelimiter(FStaticRoot), FileName, Integer(GZipLevel)]);
-
-    FileNotModified := False;
-    if FileExists(FileName) and
-      GetFileInfo(FileName, @LCreated, @LModified, nil) then
-        FileNotModified := (LCreated = Asset.Created) and
-          (LModified = Asset.Modified);
-
-    if not FileNotModified then
-    begin
-      CreateDirectories(FileName);
-      FileFromString(GZippedContent, FileName);
-      SetFileTime(FileName, Asset.Created, Asset.Modified);
-    end;
-  end;
-
-  Context.OutContent := SockString(FileName);
 end;
 
 end.

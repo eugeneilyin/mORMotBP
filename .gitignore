@@ -73,4 +73,11 @@ __recovery/
 !Tools/assetslz.exe
 !Tools/resedit.exe
 
+# Build Events IDE extension for Delphi 5-2005
+
+!Tools/BuildEvents/*.bpl
+!Tools/BuildEvents/Sources/*.dof
+
 *.res
+!Demo/Assets.res
+!Tests/Assets.res

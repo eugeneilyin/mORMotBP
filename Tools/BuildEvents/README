@@ -1,0 +1,76 @@
+This is modified version of the Build Options package from:
+
+https://kurapaty.wordpress.com/2015/03/17/build-events-for-delphi-5-7/
+
+Besides Delphi 5/7 it was adopted to use with Delphi 6/2005/2006 to cover all 
+IDE versions which don't have Build Events feature introduced in Delphi 2007.
+
+To install package into IDE do the next:
+
+  Component / Install Packages / Add
+
+  BuildEventsD5.bpl for Delphi 5
+  BuildEventsD6.bpl for Delphi 6
+  BuildEventsD7.bpl for Delphi 7
+  BuildEventsD2005.bpl for Delphi 2005
+  BuildEventsD2006.bpl for Delphi 2006
+
+Then Build Events will be available in the next IDE menu:
+
+  Project / Build Events
+
+The next Macros provided by default:
+
+  BDS              The environment variable "BDS" or Delphi IDE root directory
+  DEFINES          The project's conditional defines
+  DIR              The environment variable "DIR"
+
+  PROJECTDIR       The project's directory
+  PROJECTEXT       The project's extension
+  PROJECTFILENAME  The project file's name, with extension
+  PROJECTNAME      The project's name
+  PROJECTPATH      The project file's full path
+
+  OUTPUTDIR        The output file's directory
+  UNITOUTPUTDIR    The unit output file's directory
+
+  Path             The environment variable "PATH"
+  SystemRoot       The environment variable "SYSTEMROOT"
+  TEMPDIR          The environment variable "TEMP" or (if empty) "TMP"
+  WINDIR           The environment variable "WINDIR"
+
+You can emulate DEBUG / RELEASE configurations by 
+calling pre-build.bat or post-build.bat like this:
+
+  Pre-build events: 
+
+    "$(PROJECTDIR)\pre-build.bat" "$(DEFINES)"
+
+  Post-build events: 
+ 
+    "$(PROJECTDIR)\post-build.bat" "$(DEFINES)"
+
+With the next *.bat file customization:
+
+@ECHO OFF
+
+SET DEFINES="%~1"
+IF NOT x%DEFINES:DEBUG=%==x%DEFINES% GOTO DEBUG
+IF NOT x%DEFINES:RELEASE=%==x%DEFINES% GOTO RELEASE
+GOTO END
+
+
+:DEBUG
+ECHO DEBUG build processing
+REM ... put your DEBUG commands here ...
+GOTO END
+
+
+:RELEASE
+ECHO RELEASE build processing
+REM ... put your RELEASE commands here ...
+GOTO END
+
+
+:END
+REM ... put your common post-processing commands here ...

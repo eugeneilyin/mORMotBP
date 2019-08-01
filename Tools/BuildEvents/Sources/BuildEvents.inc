@@ -1,0 +1,56 @@
+{$IFDEF VER130} // Delphi 5
+  {$DEFINE D5_UP} 
+  {$DEFINE D4_UP} 
+  {$DEFINE D3_UP} 
+  {$DEFINE D2_UP} 
+{$ENDIF}
+
+{$IFDEF VER140} // Delphi 6
+  {$DEFINE D6_UP} 
+  {$DEFINE D5_UP} 
+  {$DEFINE D4_UP} 
+  {$DEFINE D3_UP} 
+  {$DEFINE D2_UP} 
+{$ENDIF}
+
+{$IFDEF VER150}  // Delphi 7
+  {$DEFINE D7_UP} 
+  {$DEFINE D6_UP} 
+  {$DEFINE D5_UP} 
+  {$DEFINE D4_UP} 
+  {$DEFINE D3_UP} 
+  {$DEFINE D2_UP} 
+{$ENDIF}
+
+{$IFDEF VER160} // Delphi 8 for .Net
+  {$DEFINE D8_UP} 
+  {$DEFINE D7_UP} 
+  {$DEFINE D6_UP} 
+  {$DEFINE D5_UP} 
+  {$DEFINE D4_UP} 
+  {$DEFINE D3_UP} 
+  {$DEFINE D2_UP} 
+{$ENDIF}
+
+{$IFDEF VER170} // Delphi 2005
+  {$DEFINE D2005_UP} 
+  {$DEFINE D8_UP} 
+  {$DEFINE D7_UP} 
+  {$DEFINE D6_UP} 
+  {$DEFINE D5_UP} 
+  {$DEFINE D4_UP} 
+  {$DEFINE D3_UP} 
+  {$DEFINE D2_UP} 
+{$ENDIF}
+
+{$IFDEF VER180} // Delphi 2006
+  {$DEFINE D2006_UP} 
+  {$DEFINE D2005_UP} 
+  {$DEFINE D8_UP} 
+  {$DEFINE D7_UP} 
+  {$DEFINE D6_UP} 
+  {$DEFINE D5_UP} 
+  {$DEFINE D4_UP} 
+  {$DEFINE D3_UP} 
+  {$DEFINE D2_UP} 
+{$ENDIF}

@@ -143,7 +143,7 @@ For example, you can disable cache usage for you API JSON calls or some special 
 
 ## Test Suite
 
-The `TBoilerplateHTTPServer` is fully test covered with **mORMot Test Suite** framework. Instead of classical **TDD** approach the **Behavior-Driven Development (BDD)** scenarios are used. Please see [`Tests\mORMotBPTests.dpr`][tests] for details.
+The `TBoilerplateHTTPServer` is fully test covered with **mORMot Test Suite** framework. Instead of classical **TDD** approach the **Behavior-Driven Development (BDD)** scenarios are used. Please see [`Tests\BoilerplateTests.pas`][tests] for details.
 
 ## Change Log
 This project adheres to [Semantic Versioning][semver].

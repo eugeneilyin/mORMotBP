@@ -72,7 +72,7 @@ Please see Build Events [readme][build-events-readme] for details.
 
 Due to 80 times slower compression nature of Zopfli algorithm it is not reasonable to use it during project development and debug.
 So for all debug configurations you can use fast and light level 1 compression with `-GZ1 -B1` options of **assetslz** tool:
-  * `"..\Tools\assetslz" -GZ -B1 "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
+  * `"..\Tools\assetslz" -GZ1 -B1 "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
   * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
 
 ## Recommended `RELEASE` configuration

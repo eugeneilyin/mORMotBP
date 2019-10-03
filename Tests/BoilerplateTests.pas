@@ -51,9 +51,9 @@ type
     procedure Delegate404ToInherited_404;
     procedure RegisterCustomOptions;
     procedure UnregisterCustomOptions;
-    procedure SetVaryAcceptEncoding;
     procedure RedirectInInherited_404;
     procedure UpdateStaticAsset;
+    procedure SetVaryAcceptEncoding;
   end;
 
   TBoilerplateFeatures = class(TSynTests)
@@ -645,17 +645,15 @@ begin
   begin
     GivenClearServer;
     GivenAssets;
-    GivenInHeader('Host', 'localhost');
     GivenOptions([bpoDelegateBadRequestTo404]);
-    WhenRequest('123456');
+    WhenRequest('123456', 'localhost');
     ThenOutContentEqualsFile('Assets\404.html');
     ThenRequestResultIs(HTTP_NOTFOUND);
 
     GivenClearServer;
     GivenAssets;
-    GivenInHeader('Host', 'localhost');
     GivenOptions([bpoDelegateBadRequestTo404, bpoDelegate404ToInherited_404]);
-    WhenRequest;
+    WhenRequest('', 'localhost');
     ThenOutContentIs('404 NOT FOUND');
     ThenRequestResultIs(HTTP_NOTFOUND);
   end;
@@ -1279,17 +1277,15 @@ begin
   begin
     GivenClearServer;
     GivenAssets;
-    GivenInHeader('Host', 'localhost');
     GivenOptions([bpoDelegateRootToIndex]);
-    WhenRequest;
+    WhenRequest('', 'localhost');
     ThenOutContentEqualsFile('Assets\index.html');
     ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
-    GivenInHeader('Host', 'localhost');
     GivenOptions([bpoDelegateRootToIndex, bpoDelegateIndexToInheritedDefault]);
-    WhenRequest;
+    WhenRequest('', 'localhost');
     ThenOutContentIs('DEFAULT CONTENT');
     ThenRequestResultIs(HTTP_SUCCESS);
   end;
@@ -1306,9 +1302,8 @@ begin
   begin
     GivenClearServer;
     GivenAssets;
-    GivenInHeader('Host', 'localhost');
     GivenOptions([bpoDelegateRootToIndex, bpoDelegateIndexToInheritedDefault]);
-    WhenRequest('', '', True);
+    WhenRequest('', 'localhost', True);
     ThenOutContentIs('DEFAULT CONTENT');
     ThenRequestResultIs(HTTP_SUCCESS);
   end;
@@ -1518,8 +1513,7 @@ begin
   begin
     GivenClearServer;
     GivenOptions([bpoDelegateBadRequestTo404, bpoDelegate404ToInherited_404]);
-    GivenInHeader('Host', 'localhost');
-    WhenRequest('123456');
+    WhenRequest('123456', 'localhost');
     ThenApp404Called;
   end;
 end;
@@ -2045,6 +2039,20 @@ begin
     GivenOptions([bpoVaryAcceptEncoding]);
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Vary', '');
+
+    GivenClearServer;
+    GivenOptions([bpoDelegateIndexToInheritedDefault]);
+    GivenAssets;
+    WhenRequest('/default', 'localhost');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('Vary', '');
+
+    GivenClearServer;
+    GivenOptions([bpoDelegateIndexToInheritedDefault, bpoVaryAcceptEncoding]);
+    GivenAssets;
+    WhenRequest('/default', 'localhost');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('Vary', 'Accept-Encoding');
   end;
 end;
 

@@ -74,3 +74,7 @@ Version 2.0
  - Deprecation of Iframes cookies support in Internet Explorer
  - TAssets.SaveAssets remove regexp for assets matching
    (this excludes dependency over SynTable.pas)
+
+Version 2.1
+ - bpoVaryAcceptEncoding now supports content created by the inheried class
+ - bpoDeleteXPoweredBy was excluded from DEFAULT_BOILERPLATE_OPTIONS

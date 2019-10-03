@@ -89,6 +89,11 @@ unit BoilerplateHTTPServer;
   - Deprecation of Iframes cookies support in Internet Explorer
   - TAssets.SaveAssets remove regexp for assets matching
     (this excludes dependency over SynTable.pas)
+
+  Version 2.1
+  - bpoVaryAcceptEncoding now supports content created by the inheried class
+  - bpoDeleteXPoweredBy was excluded from DEFAULT_BOILERPLATE_OPTIONS
+
 *)
 
 interface
@@ -244,8 +249,7 @@ type
     // https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options
     // https://tools.ietf.org/html/rfc7034
     // https://blogs.msdn.microsoft.com/ieinternals/2010/03/30/combating-clickjacking-with-x-frame-options/
-    // https://www.owasp.org/index.php/Clickjacking    //
-    // - Use TBoilerplateHTTPServer.FileTypesAsset to exclude some file types
+    // https://www.owasp.org/index.php/Clickjacking
     bpoSetXFrameOptions,
 
     /// Block access to files that can expose sensitive information.
@@ -863,7 +867,6 @@ const
     bpoPreventMIMESniffing,
     bpoEnableXSSFilter,
     bpoEnableReferrerPolicy,
-    bpoDeleteXPoweredBy,
     bpoFixMangledAcceptEncoding,
     bpoForceGZipHeader,
     bpoSetCachePublic,
@@ -1712,7 +1715,8 @@ begin
     DeleteCustomHeader(Context, 'SERVER-INTERNALSTATE:');
 
   if (bpoVaryAcceptEncoding in LOptions) and
-    (Asset <> nil) and (Asset.GZipExists or Asset.BrotliExists) then
+    ((Asset = nil) or
+     (Asset <> nil) and (Asset.GZipExists or Asset.BrotliExists)) then
   begin
     Vary := DeleteCustomHeader(Context, 'VARY:');
     if Vary <> '' then

@@ -76,5 +76,5 @@ Version 2.0
    (this excludes dependency over SynTable.pas)
 
 Version 2.1
- - bpoVaryAcceptEncoding now supports content created by the inheried class
+ - bpoVaryAcceptEncoding now supports content created by the inherited class
  - bpoDeleteXPoweredBy was excluded from DEFAULT_BOILERPLATE_OPTIONS

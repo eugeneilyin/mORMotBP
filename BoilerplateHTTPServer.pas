@@ -91,7 +91,7 @@ unit BoilerplateHTTPServer;
     (this excludes dependency over SynTable.pas)
 
   Version 2.1
-  - bpoVaryAcceptEncoding now supports content created by the inheried class
+  - bpoVaryAcceptEncoding now supports content created by the inherited class
   - bpoDeleteXPoweredBy was excluded from DEFAULT_BOILERPLATE_OPTIONS
 
 *)
@@ -232,7 +232,7 @@ type
     // https://tools.ietf.org/html/rfc7034section-2.1.
     //
     // Keep in mind that while you could send the `X-Frame-Options` header
-    // for all of your website’s pages, this has the potential downside that
+    // for all of your websiteÂ’s pages, this has the potential downside that
     // it forbids even non-malicious framing of your content (e.g.: when
     // users visit your website using a Google Image Search results page).
     //

@@ -35,6 +35,9 @@ unit BoilerplateAssets;
   - Free Pascal support
   - All Delphi compilers support started from Delphi 6
   - Kylix 3 support (over CrossKilyx)
+
+  Version 2.1.1
+  - Fix TAsset.SaveIdentityToFile when Root is empty
 *)
 
 interface
@@ -483,7 +486,9 @@ begin
   Result := StringReplace(Result, '/', PathDelim, [rfReplaceAll]);
   {$ENDIF}
 
-  if Root[Length(Root)] = PathDelim then
+  if Root = '' then
+    Delete(Result, 1, 1);
+  else if Root[Length(Root)] = PathDelim then
     Result := Root + Result
   else
     Result := Root + PathDelim + Result;

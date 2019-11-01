@@ -78,3 +78,6 @@ Version 2.0
 Version 2.1
  - bpoVaryAcceptEncoding now supports content created by the inherited class
  - bpoDeleteXPoweredBy was excluded from DEFAULT_BOILERPLATE_OPTIONS
+
+Version 2.1.1
+ - Fix TAsset.SaveIdentityToFile when Root is empty

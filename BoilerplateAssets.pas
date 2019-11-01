@@ -487,7 +487,7 @@ begin
   {$ENDIF}
 
   if Root = '' then
-    Delete(Result, 1, 1);
+    Delete(Result, 1, 1)
   else if Root[Length(Root)] = PathDelim then
     Result := Root + Result
   else

@@ -56,7 +56,7 @@ Add the next FPC Lazarus IDE directive to any project file for ability to rebuil
 ## Delphi 6/7/2005/2006 support
 
 Many thanks to [Kiran Kurapaty][kiran-kurapaty] with his BuildOptions package for Delphi 5 and Delphi 7.
-Based on his code the modified IDE packages for Delphi 5/6/7/2005/2006 created to enable Build Events support on all Delphi IDE versions before Delphi 2007, where Build Events introduced first time.
+Based on his code the modified IDE packages for Delphi 5/6/7/2005/2006 were created to enable Build Events support on all Delphi IDE versions before Delphi 2007, where Build Events were introduced for the first time.
 
 Use **Component / Install Packages / Add** IDE menu to install **Build Events** IDE extension:
 * `Tools\BuildEvents\BuildEventsD5.bpl` for **Delphi 5**
@@ -66,7 +66,7 @@ Use **Component / Install Packages / Add** IDE menu to install **Build Events** 
 * `Tools\BuildEvents\BuildEventsD2006.bpl` for **Delphi 2006**
 
 With this build events and special `.bat` file you can emulate `DEBUG` and `RELEASE` configurations. 
-Please see Build Events [readme][build-events-readme] for details.
+Please see the Build Events [readme][build-events-readme] for details.
               
 ## Recommended `DEBUG` configuration
 
@@ -98,7 +98,7 @@ You can embed any directories or files into your **single** project executable f
 This gives you an ability to distribute, scale and run only one file on yours production environments.
 Load from resource and deploy any assets on your production when it started. `TAssets` also checks files for modification timestamp and size changes before save to optimize disk IO operations.
 
-For example you can compress and pack all you static assets into `Assets.res` and additionally pack mustache view files into separate `Views.res` like this:
+For example you can compress and pack all you static assets into `Assets.res` and additionally pack mustache view templates into separate `Views.res` like this:
 
   * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
   * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
@@ -111,7 +111,6 @@ Add the next lines to you project file near `{$R *.res}` or add both files to pr
 
 ```delphi
 {$R Assets.res}
-
 {$R Views.res}
 ```
 
@@ -131,12 +130,12 @@ end;
 
 ## Custom options
 
-With `RegisterCustomOptions` method you can tweak different options for different HTTP paths.
+With `RegisterCustomOptions` method you can tweak different options for different HTTP URL paths.
 For example, you can disable cache usage for you API JSON calls or some special pages like this:
 
 ```delphi
   HTTPServer.RegisterCustomOptions(
-    ['/api/json', '/contacts*', '/login', '/settings*'],
+    ['/api/json', '/login', '/settings*'],
     HTTPServer.Options - [bpoSetCachePublic] + [bpoSetCachePrivate,
       bpoSetCacheNoCache, bpoSetCacheNoStore, bpoSetCacheMustRevalidate]);
 ```

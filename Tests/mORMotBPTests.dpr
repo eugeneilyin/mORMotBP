@@ -5,8 +5,8 @@ Before running the tests you must build Assets.res file
 
 To do this add the next two events to the "Pre-build events" project options:
 
-"$(PROJECTDIR)\..\Tools\assetslz" -GZ1 -B1 "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"
-"$(PROJECTDIR)\..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"
+"$(PROJECTDIR)\..\Tools\assetslz" -GZ1 -B1 "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\Assets.tmp"
+"$(PROJECTDIR)\..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\Assets.tmp"
 
 For Delphi 2007 IDE and above:
 
@@ -44,6 +44,7 @@ uses
   {$I SynDprUses.inc} // will enable FastMM4 prior to Delphi 2006, and enable FPC on linux
   BoilerplateAssets in '../BoilerplateAssets.pas',
   BoilerplateHTTPServer in '../BoilerplateHTTPServer.pas',
+  CSP in '../CSP.pas',
   BoilerplateTests in 'BoilerplateTests.pas';
 
 begin

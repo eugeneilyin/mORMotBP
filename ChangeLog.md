@@ -80,4 +80,10 @@ Version 2.1
  - bpoDeleteXPoweredBy was excluded from DEFAULT_BOILERPLATE_OPTIONS
 
 Version 2.1.1
- - Fix TAsset.SaveIdentityToFile when Root is empty
+ - Fix TAsset.SaveIdentityToFile bug when Root is empty
+
+Version 2.2
+  - Align assets to recent HTML 5 Boilerplate 7.3.0
+  - New CPS unit to handle Content Security Policy Level 2 / Level 3
+  - Add TBoilerplateHTTPServer.ContentSecurityPolicyReportOnly property
+  - BoilerplateAssets content types normalization

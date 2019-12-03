@@ -3,7 +3,7 @@
 unit BoilerplateAssets;
 
 (*
-  This file is a path of integration project between HTML5 Boilerplate and
+  This unit is a path of integration project between HTML5 Boilerplate and
   Synopse mORMot Framework.
 
     https://synopse.info
@@ -37,7 +37,10 @@ unit BoilerplateAssets;
   - Kylix 3 support (over CrossKilyx)
 
   Version 2.1.1
-  - Fix TAsset.SaveIdentityToFile when Root is empty
+  - Fix TAsset.SaveIdentityToFile bug when Root is empty
+
+  Version 2.2
+  - Content types normalization
 *)
 
 interface
@@ -63,16 +66,16 @@ type
     Path: RawUTF8;
     Modified: TDateTime;
     ContentType: RawUTF8;
-    Content: RawUTF8;
+    Content: RawByteString;
     Hash: Cardinal;
     // We cann't use array[TAssetEncoding] here due to TDynArrayHashed.SaveTo
     // limitations in old Delphi compilers: Delphi 2009 and below. That's why
     // the TAsset structure without nested arrays.
     GZipExists: Boolean;
-    GZipEncoding: RawUTF8;
+    GZipEncoding: RawByteString;
     GZipHash: Cardinal;
     BrotliExists: Boolean;
-    BrotliEncoding: RawUTF8;
+    BrotliEncoding: RawByteString;
     BrotliHash: Cardinal;
     function LoadFromFile(const Root, FileName: TFileName): Boolean;
     procedure SetEncoding(const Encoded: RawByteString;
@@ -97,7 +100,7 @@ type
     Count: Integer;
     procedure Init;
     function Add(const Root, FileName: TFileName): PAsset;
-    procedure SaveToFile(const FileName: string);
+    procedure SaveToFile(const FileName: TFileName);
     procedure LoadFromFile(const FileName: TFileName);
     procedure LoadFromResource(const ResName: string);
     procedure SaveAll(const Root: TFileName = '';
@@ -427,11 +430,6 @@ begin
   until False;
 end;
 
-function SortAssetByPath(const A, B): Integer;
-begin
-  Result := StrCompFast(Pointer(TAsset(A).Path), Pointer(TAsset(B).Path));
-end;
-
 { TAsset }
 
 function TAsset.LoadFromFile(const Root, FileName: TFileName): Boolean;
@@ -522,7 +520,7 @@ var
   LModified: TDateTime;
   LSize: Int64;
   FileModified: Boolean;
-  FileContent: RawUTF8;
+  FileContent: RawByteString;
 
 begin
   case Encoding of
@@ -680,7 +678,7 @@ begin
         SaveIdentityToFile(Root, ChecksNotModified);
 end;
 
-procedure TAssets.SaveToFile(const FileName: string);
+procedure TAssets.SaveToFile(const FileName: TFileName);
 begin
   FileFromString(AlgoSynLZ.Compress(FAssetsDAH.SaveTo), FileName);
 end;

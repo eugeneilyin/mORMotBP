@@ -5,7 +5,7 @@
 <h3>Boilerplate HTTP Server for Synopse mORMot Framework</h3>
 </div>
 
-This project is embedding of **HTML5 Boilerplate** v.7.2.0 files and settings into **Synopse mORMot Framework**
+This project is embedding of **HTML5 Boilerplate** v.7.3.0 files and settings into **Synopse mORMot Framework**
   * [html5boilerplate.com][boilerplate]
   * [synopse.info][synopse-mormot]
 
@@ -37,6 +37,7 @@ This project is embedding of **HTML5 Boilerplate** v.7.2.0 files and settings in
 * Fix well-known mangled **Accept-Encoding** values in HTTP headers.
 * Block access to files that can expose sensitive information (see `bpoDelegateBlocked` option).
 * Apply many HTTP headers corrections following **HTML5 Boilerplate** settings.
+* Support **Content Security Policy** Level 2 / Level 3 (see `CSP.pas` unit for details).
 * You can safely replace anywhere your **TSQLHttpServer** with `TBoilerplateHTTPServer = class(TSQLHttpServer)`.
 
 ## Lazarus Free Pascal support
@@ -78,8 +79,8 @@ So for all debug configurations you can use fast and light level 1 compression w
 ## Recommended `RELEASE` configuration
 
 For release configuration it is recommended to turn on `bpoForceHTTPS`, and set `.StrictSSL` property to `strictSSLOn` or 
-even `strictSSLIncludeSubDomains`. Also setup `.ContentSecurityPolicy` property and validate it 
-with [Security Headers][security-headers] service.
+even `strictSSLIncludeSubDomains`. Setup `.ContentSecurityPolicy` property and validate it 
+with [Security Headers][security-headers] service (see `CSP.pas` unit for details).
 
 ### Disable `Server` HTTP header on production
 

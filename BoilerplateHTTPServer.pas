@@ -3,7 +3,7 @@
 unit BoilerplateHTTPServer;
 
 (*
-  This file is a path of integration project between HTML5 Boilerplate and
+  This unit is a path of integration project between HTML5 Boilerplate and
   Synopse mORMot Framework.
 
     https://synopse.info
@@ -52,7 +52,6 @@ unit BoilerplateHTTPServer;
   - RegisterCustomOptions now supports URLs prefixes
 
   Version 2.0
-  - Align all boilerplate assets to recent HTML 5 Boilerplate 7.2.0
   - All Delphi compilers support started from Delphi 6
     (special BuildEvents IDE extenstion provided for old Delphi 6/7/2005/2006)
   - Free Pascal support
@@ -94,6 +93,8 @@ unit BoilerplateHTTPServer;
   - bpoVaryAcceptEncoding now supports content created by the inherited class
   - bpoDeleteXPoweredBy was excluded from DEFAULT_BOILERPLATE_OPTIONS
 
+  Version 2.2
+  - Add TBoilerplateHTTPServer.ContentSecurityPolicyReportOnly property
 *)
 
 interface
@@ -540,6 +541,7 @@ type
     FAssets: TAssets;
     FOptions: TBoilerplateOptions;
     FContentSecurityPolicy: SockString;
+    FContentSecurityPolicyReportOnly: SockString;
     FStrictSSL: TStrictSSL;
     FReferrerPolicy: SockString;
     FWWWRewrite: TWWWRewrite;
@@ -809,6 +811,10 @@ type
     property ContentSecurityPolicy: SockString
       read FContentSecurityPolicy write FContentSecurityPolicy;
 
+    property ContentSecurityPolicyReportOnly: SockString
+      read FContentSecurityPolicyReportOnly
+      write FContentSecurityPolicyReportOnly;
+
     /// See TBoilerplateOption.bpoEnableReferrerPolicy
     property ReferrerPolicy: SockString read FReferrerPolicy
       write FReferrerPolicy;
@@ -887,6 +893,9 @@ const
 
   /// See TBoilerplateHTTPServer.ContentSecurityPolicy
   DEFAULT_CONTENT_SECURITY_POLICY: SockString = '';
+
+  /// See TBoilerplateHTTPServer.ContentSecurityPolicyReportOnly
+  DEFAULT_CONTENT_SECURITY_POLICY_REPORT_ONLY: SockString = '';
 
   CONTENT_SECURITY_POLICY_STRICT =
     'default-src ''self''; ' +
@@ -1234,6 +1243,8 @@ begin
   FAssets.Init;
   FOptions := DEFAULT_BOILERPLATE_OPTIONS;
   FContentSecurityPolicy := DEFAULT_CONTENT_SECURITY_POLICY;
+  FContentSecurityPolicyReportOnly :=
+    DEFAULT_CONTENT_SECURITY_POLICY_REPORT_ONLY;
   FStrictSSL := DEFAULT_STRICT_SLL;
   FReferrerPolicy := DEFAULT_REFERRER_POLICY;
   FWWWRewrite := DEFAULT_WWW_REWRITE;
@@ -1630,8 +1641,13 @@ begin
 
   if (FContentSecurityPolicy <> '') and
     IdemPChar(Pointer(ContentType), 'TEXT/HTML') then
-      AddCustomHeader(Context, 'Content-Security-Policy',
-        FContentSecurityPolicy);
+          AddCustomHeader(Context, 'Content-Security-Policy',
+            FContentSecurityPolicy);
+
+  if (FContentSecurityPolicyReportOnly <> '') and
+    IdemPChar(Pointer(ContentType), 'TEXT/HTML') then
+          AddCustomHeader(Context, 'Content-Security-Policy-Report-Only',
+            FContentSecurityPolicyReportOnly);
 
   if FStrictSSL = strictSSLOn then
     if Context.UseSSL then
@@ -1662,6 +1678,7 @@ begin
   if bpoDeleteXPoweredBy in LOptions then
     DeleteCustomHeader(Context, 'X-POWERED-BY:');
 
+  Expires := 0;
   ExpiresDefined := False;
 
   if [bpoSetCacheNoTransform, bpoSetCachePublic, bpoSetCachePrivate,

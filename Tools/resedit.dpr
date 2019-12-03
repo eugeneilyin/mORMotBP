@@ -547,8 +547,6 @@ end;
 {$ENDIF}
 
 begin
-  {$IFDEF DEBUG} ReportMemoryLeaksOnShutdown := True; {$ENDIF}
-
   try
     if not ParseParameters then
     begin

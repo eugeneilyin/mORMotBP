@@ -73,8 +73,8 @@ Please see the Build Events [readme][build-events-readme] for details.
 
 Due to 80 times slower compression nature of Zopfli algorithm it is not reasonable to use it during project development and debug.
 So for all debug configurations you can use fast and light level 1 compression with `-GZ1 -B1` options of **assetslz** tool:
-  * `"..\Tools\assetslz" -GZ1 -B1 "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
-  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
+  * `"..\Tools\assetslz" -GZ1 -B1 "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\Assets.tmp"`
+  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\Assets.tmp"`
 
 ## Recommended `RELEASE` configuration
 
@@ -101,10 +101,10 @@ Load from resource and deploy any assets on your production when it started. `TA
 
 For example you can compress and pack all you static assets into `Assets.res` and additionally pack mustache view templates into separate `Views.res` like this:
 
-  * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
-  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
-  * `"..\Tools\assetslz" -E "$(PROJECTDIR)\Views" "$(PROJECTDIR)\views.tmp"`
-  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Views.res" rcdata VIEWS "$(PROJECTDIR)\views.tmp"`
+  * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\Assets.tmp"`
+  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\Assets.tmp"`
+  * `"..\Tools\assetslz" -E "$(PROJECTDIR)\Views" "$(PROJECTDIR)\Views.tmp"`
+  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Views.res" rcdata VIEWS "$(PROJECTDIR)\Views.tmp"`
 
 The `-E` option for views means skip any compression because we needn't to compress mustache views.
 Now you can embed both resources files into executable.

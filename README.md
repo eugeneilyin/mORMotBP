@@ -13,8 +13,8 @@ This project is embedding of **HTML5 Boilerplate** v.7.3.0 files and settings in
 
 1. Download the latest mORMotBP [release][releases] from GitHub repository
 2. Add the next two **Pre-Build** events to create resource file `Assets.res` with all **h5bp** resources embedded:
-  * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\assets.tmp"`
-  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\assets.tmp"`
+  * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\Assets.tmp"`
+  * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\Assets.tmp"`
 > Replace `"..\Tools"` to mORMorBP relative or full directory location. Also you can add Tools directory to your **PATH** environment veriable and use `assetslz` and `resedit` commands directly.
 3. Add `mORMotBP` to your library path or add `BoilerplateAssets.pas`, `BoilerplateHTTPServer.pas` files to the project
 4. Replace `TSQLHttpServer` instance creation with `TBoilerplateHTTPServer`

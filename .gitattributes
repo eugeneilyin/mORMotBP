@@ -1,3 +1,4 @@
 * text=auto
 Tests/Assets/* binary
 Tests/pre-build.sh binary
+Demo/pre-build.sh binary

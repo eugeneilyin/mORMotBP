@@ -207,7 +207,7 @@ type
     procedure Start(Server: TSQLRestServer;
       const ViewsFolder: TFileName); reintroduce;
   published
-    procedure Error(var Msg: RawUTF8; var Scope: Variant);
+    procedure Error(var Msg: RawUTF8; var Scope: Variant); override;
     procedure Default(var Scope: Variant);
     procedure _404(const Dummy: Integer; out Scope: Variant);
   end;
@@ -220,7 +220,7 @@ type
     procedure Start(Server: TSQLRestServer;
       const ViewsFolder: TFileName); reintroduce;
   published
-    procedure Error(var Msg: RawUTF8; var Scope: Variant);
+    procedure Error(var Msg: RawUTF8; var Scope: Variant); override;
     procedure Default(var Scope: Variant);
     procedure _404(const Dummy: Integer; out Scope: Variant);
   end;

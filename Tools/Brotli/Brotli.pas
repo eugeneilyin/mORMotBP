@@ -31,6 +31,9 @@ unit Brotli;
 
 interface
 
+uses
+  SysUtils;
+
 const
   BROTLI_MIN_QUALITY = 0;
   BROTLI_MAX_QUALITY = 11;
@@ -39,6 +42,8 @@ const
   BROTLI_QUALITY_ZOPFLIFICATION = 10;
   BROTLI_QUALITY_HQ_ZOPFLIFICATION = 11;
   BROTLI_QUALITY_DEFAULT = BROTLI_QUALITY_HQ_ZOPFLIFICATION;
+  BROTLI_QUALITY_COMPRESS_X32 = BROTLI_QUALITY_FAST_ONE_PASS_COMPRESSION;
+  BROTLI_QUALITY_COMPRESS_X64 = 3;
 
   BROTLI_MIN_WINDOW_BITS = 10;
   BROTLI_MAX_WINDOW_BITS = 24;
@@ -63,6 +68,9 @@ type
   // - bemText compression mode for UTF-8 formatted text input
   // - bemFont compression mode used in WOFF 2.0
   TBrotliEncoderMode = (bemGeneric, bemText, bemFont);
+
+  /// Exception raised internaly in case of Brotli errors
+  EBrotliException = class(Exception);
 
 /// Compress data using the Brotli algorithm
 // - Data
@@ -102,6 +110,7 @@ function BrotliDecompress(const Encoded: EncodedString;
   out Decoded: EncodedString): Boolean;
 
 type
+
   // Semantic version, calculated as (MAJOR << 24) | (MINOR << 12) | PATCH
   TBrotliVersion = record
     Major: Cardinal;
@@ -117,10 +126,14 @@ function GetBrotliEncoderVersion: TBrotliVersion;
 // Look at TBrotliVersion for more information.
 function GetBrotliDecoderVersion: TBrotliVersion;
 
-implementation
+/// (Un)Compress a data content using the Brotli algorithm
+// - As expected by THttpSocket.RegisterCompress
+// - Compared to SynZip.CompressGZip:
+//     on x32 platfrom gives the same compression level with 25% more time
+//     on x64 platfrom gives ~13.5% better compression for the same time
+function CompressBrotli(var DataRawByteString; Compress: Boolean): AnsiString;
 
-uses
-  SysUtils;
+implementation
 
 {$IFDEF MSWINDOWS}
   {$IFDEF CPU386}
@@ -233,7 +246,6 @@ uses
 type
   TBrotliSize = {$IFDEF CPU386} Integer {$ELSE} Int64 {$ENDIF};
 
-  EBrotliException = class(Exception);
   EBrotliExitException = class(EBrotliException)
     Status: Integer;
   end;
@@ -534,6 +546,27 @@ begin
   Result := ParseVersion(DecoderVersion);
 end;
 
+function CompressBrotli(var DataRawByteString; Compress: Boolean): AnsiString;
+var
+  Data: EncodedString absolute DataRawByteString;
+  Temp: EncodedString;
+begin
+  if Compress then
+  begin
+    if not BrotliCompress(Data, Temp, bemGeneric,
+      {$IFDEF CPU386}
+        BROTLI_QUALITY_COMPRESS_X32
+      {$ELSE}
+        BROTLI_QUALITY_COMPRESS_X64
+      {$ENDIF}) then
+        raise EBrotliException.Create('Error during Brotli compression');
+  end else
+    if not BrotliDecompress(Data, Temp) then
+      raise EBrotliException.Create('Error during Brotli decompression');
+  Data := Temp;
+  Result := 'br';
+end;
+
 {$IFNDEF FPC}
 {$IFDEF WITH_UNDERSCORE}
 procedure __exit(Status: Integer); cdecl; export;
@@ -613,6 +646,13 @@ function brotliLog(X: Double): Double; cdecl; export;
 begin
   Result := Ln(X);
 end;
+
+{$IFDEF WIN64}
+function brotliLog(X: Double): Double; cdecl; export;
+begin
+  Result := Ln(X);
+end;
+{$ENDIF WIN64}
 
 {$IFNDEF FPC}
 

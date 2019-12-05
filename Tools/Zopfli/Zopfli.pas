@@ -28,6 +28,9 @@ unit Zopfli;
 
 interface
 
+uses
+  SysUtils;
+
 type
   {$IFDEF FPC}
     {$IFDEF FPC_HAS_CPSTRING}
@@ -53,6 +56,9 @@ type
   //     http://www.ietf.org/rfc/rfc1952.txt
   TZopfliFormat = (zfGZip, zfZLib, zfDeflate);
 
+  /// Exception raised internaly in case of Zopfli errors
+  EZopfliException = class(Exception);
+
 /// Compress Data using the Zopfli algorithm
 // - Data
 //     Data to compress
@@ -74,9 +80,6 @@ function ZopfliCompress(const Data: EncodedString; out Encoded: EncodedString;
   const BlockSplittingMax: Integer = 15): Boolean;
 
 implementation
-
-uses
-  SysUtils;
 
 {$IFDEF MSWINDOWS}
   {$IFDEF CPU386}
@@ -137,7 +140,6 @@ uses
 type
   TZopfliSize = {$IFDEF CPU386} Integer {$ELSE} Int64 {$ENDIF};
 
-  EZopfliException = class(Exception);
   EZopfliExitException = class(EZopfliException)
     Status: Integer;
   end;
@@ -569,6 +571,10 @@ end;
 {$ENDIF WIN32}
 {$IFDEF WIN64}
 function _zopfliLog(X: Double): Double; cdecl;
+begin
+  Result := Ln(x);
+end;
+function zopfliLog(X: Double): Double; cdecl;
 begin
   Result := Ln(x);
 end;

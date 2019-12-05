@@ -84,6 +84,6 @@ Version 2.1.1
 
 Version 2.2
   - Align assets to recent HTML 5 Boilerplate 7.3.0
-  - New CPS unit to handle Content Security Policy Level 2 / Level 3
+  - New CSP unit to handle Content Security Policy Level 2 / Level 3
   - Add TBoilerplateHTTPServer.ContentSecurityPolicyReportOnly property
   - BoilerplateAssets content types normalization

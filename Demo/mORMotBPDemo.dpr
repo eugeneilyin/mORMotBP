@@ -32,7 +32,11 @@ For Free Pascal Lazarus IDE (when this file opened):
 
 ===============================================================================}
 
+{$IFDEF LINUX}
 {%BuildCommand pre-build.sh $ProjPath()}
+{$ELSE}
+{%BuildCommand pre-build.bat $ProjPath()}
+{$ENDIF}
 
 program mORMotBPDemo;
 

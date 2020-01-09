@@ -46,7 +46,7 @@ To build or update `Assets.res` file under Lazarus IDE use the next menu (when p
 
   `Run / Build File`
 
-This menu command call **pre-build.sh** script which is use `assetslz32`/`assetslz64` and `resedit32`/`resedit64` tools to compress and embed assets under Linux environment.
+This menu command call **pre-build.sh** or **pre-build.bat** script which is use `assetslz32`/`assetslz64` and `resedit32`/`resedit64` tools to compress and embed assets under Linux/Windows environment.
 
 Add the next FPC Lazarus IDE directive to any project file for ability to rebuild resource files:
 

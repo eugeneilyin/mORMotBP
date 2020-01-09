@@ -20,7 +20,7 @@ else
     ARCH='32'
   fi
 
-  ${1}../Tools/assetslz${ARCH} -GZ1 -B1 ${1}Assets ${1}assets.tmp
+  ${1}../Tools/assetslz${ARCH} -GZ1 -B1 ${1}../Assets ${1}assets.tmp
   ${1}../Tools/resedit${ARCH} -D ${1}Assets.res rcdata ASSETS ${1}assets.tmp
 
 fi

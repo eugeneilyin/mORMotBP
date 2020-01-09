@@ -51,7 +51,12 @@ This menu command call **pre-build.sh** script which is use `assetslz32`/`assets
 Add the next FPC Lazarus IDE directive to any project file for ability to rebuild resource files:
 
 ```delphi
-{%BuildCommand pre-build.sh $ProjPath()}
+{$IFDEF LINUX}
+  {%BuildCommand pre-build.sh $ProjPath()}
+{$ENDIF}
+{$IFDEF MSWINDOWS}
+  {%BuildCommand pre-build.bat "$ProjPath()"}
+{$ENDIF}
 ```
 
 ## Delphi 6/7/2005/2006 support

@@ -155,14 +155,17 @@ type
     /// Custom error messages/pages
     // Customize what server returns to the client in case of an error.
 
-    // Set content for HTTP 400 Bad Request response code equal '/404' content
+    // Set content for HTTP 400 Bad Request response code equals to '/404'
     bpoDelegateBadRequestTo404,
 
-    // Set content for HTTP 403 Forbidden response code to '/404' content
+    // Set content for HTTP 403 Forbidden response code equals to '/404'
     bpoDelegateForbiddenTo404,
 
-    // Set content for HTTP 404 Not Found response code to '/404' content
+    // Set content for HTTP 404 Not Found response code equals to '/404'
     bpoDelegateNotFoundTo404,
+
+    // Set content for HTTP 405 Not Allowed response code equals to '/404'
+    bpoDelegateNotAllowedTo404,
 
     /// Internet Explorer Document modes                                                     |
     // Force Internet Explorer 8/9/10 to render pages in the highest mode
@@ -864,6 +867,7 @@ const
     bpoDelegateBadRequestTo404,
     bpoDelegateForbiddenTo404,
     bpoDelegateNotFoundTo404,
+    bpoDelegateNotAllowedTo404,
     bpoSetXUACompatible,
     bpoForceMIMEType,
     bpoForceUTF8Charset,
@@ -1517,6 +1521,7 @@ begin
   if ((Result = HTTP_BADREQUEST) and (bpoDelegateBadRequestTo404 in LOptions)) or
     ((Result = HTTP_FORBIDDEN) and (bpoDelegateForbiddenTo404 in LOptions)) or
     ((Result = HTTP_NOTFOUND) and (bpoDelegateNotFoundTo404 in LOptions)) or
+    ((Result = HTTP_NOTALLOWED) and (bpoDelegateNotAllowedTo404 in LOptions)) or
     ((bpoDelegateBlocked in LOptions) and
       (FastInArray(Ext, FFileTypesBlockedArray) or
       ((Path <> '') and (

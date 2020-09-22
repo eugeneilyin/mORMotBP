@@ -25,6 +25,7 @@ interface
 
 uses
   SynCommons,
+  SynTable,
   SynCrypto,
   SynCrtSock;
 

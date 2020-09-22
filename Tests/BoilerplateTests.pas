@@ -17,6 +17,7 @@ type
     procedure DelegateBadRequestTo404;
     procedure DelegateForbiddenTo404;
     procedure DelegateNotFoundTo404;
+    procedure DelegateNotAllowedTo404;
     procedure SetXUACompatible;
     procedure ForceMIMEType;
     procedure ForceTextUTF8Charset;
@@ -152,6 +153,7 @@ type
     FTestCase: TSynTestCase;
     FModel: TSQLModel;
     FServer: TSQLRestServer;
+    FServerAccessRights: TSQLAccessRights;
     FApplication: IBoilerplateApplication;
     FContext: THttpServerRequestStub;
   public
@@ -233,6 +235,15 @@ begin
   Result.FileTimestampMonitorAfterSeconds := 0;
   Result.ExtensionForNotExistingTemplate := '';
   Result.Helpers := nil;
+end;
+
+{ TBoilerplateFeatures }
+
+procedure TBoilerplateFeatures.Scenarios;
+begin
+  AddCase(TBoilerplateHTTPServerShould);
+  AddCase(TCSP2Should);
+  AddCase(TCSP3Should);
 end;
 
 { TBoilerplateHTTPServerShould }
@@ -810,6 +821,29 @@ begin
     GivenAssets;
     GivenOptions([bpoDelegateForbiddenTo404]);
     WhenRequest('root/12345');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutContentEqualsFile('Assets\404.html');
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateNotAllowedTo404;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(
+    Self, False, T404Application.Create));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    WhenRequest('root/Record/1');
+    ThenRequestResultIs(HTTP_NOTALLOWED);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateNotAllowedTo404]);
+    WhenRequest('root/Record/1');
     ThenRequestResultIs(HTTP_NOTFOUND);
     ThenOutContentEqualsFile('Assets\404.html');
   end;
@@ -3636,7 +3670,7 @@ const
   SERVER_SECURITY: array[Boolean] of TSQLHTTPServerSecurity = (secNone, secSSL);
 begin
   FTestCase := TestCase;
-  FModel := TSQLModel.Create([]);
+  FModel := TSQLModel.Create([TSQLRecord]);
   FServer := TSQLRestServerFullMemory.Create(FModel, Auth);
   FApplication := AApplication;
   if FApplication = nil then
@@ -3655,8 +3689,8 @@ begin
       TMVCApplication(ObjectFromInterface(FApplication)).Start(
         FServer, TypeInfo(IBoilerplateApplication));
   FContext := THttpServerRequestStub.Create(nil, 0, nil);
-  inherited Create(DEFAULT_PORT, FServer, '+', useHttpSocket, nil, 0,
-    SERVER_SECURITY[AUseSSL]);
+  inherited Create(DEFAULT_PORT, FServer, '+', useHttpSocket,
+    @FServerAccessRights, 0, SERVER_SECURITY[AUseSSL]);
   DomainHostRedirect('localhost', 'root');
 end;
 
@@ -3886,13 +3920,6 @@ end;
 procedure T404Application._404(const Dummy: Integer; out Scope: Variant);
 begin
   Is404Called := True;
-end;
-
-procedure TBoilerplateFeatures.Scenarios;
-begin
-  AddCase(TBoilerplateHTTPServerShould);
-  AddCase(TCSP2Should);
-  AddCase(TCSP3Should);
 end;
 
 end.

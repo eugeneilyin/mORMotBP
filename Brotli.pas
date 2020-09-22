@@ -138,108 +138,108 @@ implementation
 {$IFDEF MSWINDOWS}
   {$IFDEF CPU386}
     {$DEFINE WITH_UNDERSCORE}
-    {$L static\bcc32\backward_references.obj}
-    {$L static\bcc32\backward_references_hq.obj}
-    {$L static\bcc32\bit_cost.obj}
-    {$L static\bcc32\bit_reader.obj}
-    {$L static\bcc32\block_splitter.obj}
-    {$L static\bcc32\brotli_bit_stream.obj}
-    {$L static\bcc32\cluster.obj}
-    {$L static\bcc32\compress_fragment.obj}
-    {$L static\bcc32\compress_fragment_two_pass.obj}
-    {$L static\bcc32\decode.obj}
-    {$L static\bcc32\dictionary.obj}
-    {$L static\bcc32\dictionary_hash.obj}
-    {$L static\bcc32\encode.obj}
-    {$L static\bcc32\encoder_dict.obj}
-    {$L static\bcc32\entropy_encode.obj}
-    {$L static\bcc32\histogram.obj}
-    {$L static\bcc32\huffman.obj}
-    {$L static\bcc32\literal_cost.obj}
-    {$L static\bcc32\memory.obj}
-    {$L static\bcc32\metablock.obj}
-    {$L static\bcc32\state.obj}
-    {$L static\bcc32\static_dict.obj}
-    {$L static\bcc32\transform.obj}
-    {$L static\bcc32\utf8_util.obj}
+    {$L Tools\Brotli\static\bcc32\backward_references.obj}
+    {$L Tools\Brotli\static\bcc32\backward_references_hq.obj}
+    {$L Tools\Brotli\static\bcc32\bit_cost.obj}
+    {$L Tools\Brotli\static\bcc32\bit_reader.obj}
+    {$L Tools\Brotli\static\bcc32\block_splitter.obj}
+    {$L Tools\Brotli\static\bcc32\brotli_bit_stream.obj}
+    {$L Tools\Brotli\static\bcc32\cluster.obj}
+    {$L Tools\Brotli\static\bcc32\compress_fragment.obj}
+    {$L Tools\Brotli\static\bcc32\compress_fragment_two_pass.obj}
+    {$L Tools\Brotli\static\bcc32\decode.obj}
+    {$L Tools\Brotli\static\bcc32\dictionary.obj}
+    {$L Tools\Brotli\static\bcc32\dictionary_hash.obj}
+    {$L Tools\Brotli\static\bcc32\encode.obj}
+    {$L Tools\Brotli\static\bcc32\encoder_dict.obj}
+    {$L Tools\Brotli\static\bcc32\entropy_encode.obj}
+    {$L Tools\Brotli\static\bcc32\histogram.obj}
+    {$L Tools\Brotli\static\bcc32\huffman.obj}
+    {$L Tools\Brotli\static\bcc32\literal_cost.obj}
+    {$L Tools\Brotli\static\bcc32\memory.obj}
+    {$L Tools\Brotli\static\bcc32\metablock.obj}
+    {$L Tools\Brotli\static\bcc32\state.obj}
+    {$L Tools\Brotli\static\bcc32\static_dict.obj}
+    {$L Tools\Brotli\static\bcc32\transform.obj}
+    {$L Tools\Brotli\static\bcc32\utf8_util.obj}
   {$ELSE CPU386}
-    {$L static\bcc64\backward_references.o}
-    {$L static\bcc64\backward_references_hq.o}
-    {$L static\bcc64\bit_cost.o}
-    {$L static\bcc64\bit_reader.o}
-    {$L static\bcc64\block_splitter.o}
-    {$L static\bcc64\brotli_bit_stream.o}
-    {$L static\bcc64\cluster.o}
-    {$L static\bcc64\compress_fragment.o}
-    {$L static\bcc64\compress_fragment_two_pass.o}
-    {$L static\bcc64\decode.o}
-    {$L static\bcc64\dictionary.o}
-    {$L static\bcc64\dictionary_hash.o}
-    {$L static\bcc64\encode.o}
-    {$L static\bcc64\encoder_dict.o}
-    {$L static\bcc64\entropy_encode.o}
-    {$L static\bcc64\histogram.o}
-    {$L static\bcc64\huffman.o}
-    {$L static\bcc64\literal_cost.o}
-    {$L static\bcc64\memory.o}
-    {$L static\bcc64\metablock.o}
-    {$L static\bcc64\state.o}
-    {$L static\bcc64\static_dict.o}
-    {$L static\bcc64\transform.o}
-    {$L static\bcc64\utf8_util.o}
+    {$L Tools\Brotli\static\bcc64\backward_references.o}
+    {$L Tools\Brotli\static\bcc64\backward_references_hq.o}
+    {$L Tools\Brotli\static\bcc64\bit_cost.o}
+    {$L Tools\Brotli\static\bcc64\bit_reader.o}
+    {$L Tools\Brotli\static\bcc64\block_splitter.o}
+    {$L Tools\Brotli\static\bcc64\brotli_bit_stream.o}
+    {$L Tools\Brotli\static\bcc64\cluster.o}
+    {$L Tools\Brotli\static\bcc64\compress_fragment.o}
+    {$L Tools\Brotli\static\bcc64\compress_fragment_two_pass.o}
+    {$L Tools\Brotli\static\bcc64\decode.o}
+    {$L Tools\Brotli\static\bcc64\dictionary.o}
+    {$L Tools\Brotli\static\bcc64\dictionary_hash.o}
+    {$L Tools\Brotli\static\bcc64\encode.o}
+    {$L Tools\Brotli\static\bcc64\encoder_dict.o}
+    {$L Tools\Brotli\static\bcc64\entropy_encode.o}
+    {$L Tools\Brotli\static\bcc64\histogram.o}
+    {$L Tools\Brotli\static\bcc64\huffman.o}
+    {$L Tools\Brotli\static\bcc64\literal_cost.o}
+    {$L Tools\Brotli\static\bcc64\memory.o}
+    {$L Tools\Brotli\static\bcc64\metablock.o}
+    {$L Tools\Brotli\static\bcc64\state.o}
+    {$L Tools\Brotli\static\bcc64\static_dict.o}
+    {$L Tools\Brotli\static\bcc64\transform.o}
+    {$L Tools\Brotli\static\bcc64\utf8_util.o}
   {$ENDIF CPU386}
 {$ENDIF MSWINDOWS}
 {$IFDEF LINUX}
   {$IFDEF CPU386}
-    {$L static/gcc32/backward_references.o}
-    {$L static/gcc32/backward_references_hq.o}
-    {$L static/gcc32/bit_cost.o}
-    {$L static/gcc32/bit_reader.o}
-    {$L static/gcc32/block_splitter.o}
-    {$L static/gcc32/brotli_bit_stream.o}
-    {$L static/gcc32/cluster.o}
-    {$L static/gcc32/compress_fragment.o}
-    {$L static/gcc32/compress_fragment_two_pass.o}
-    {$L static/gcc32/decode.o}
-    {$L static/gcc32/dictionary.o}
-    {$L static/gcc32/dictionary_hash.o}
-    {$L static/gcc32/encode.o}
-    {$L static/gcc32/encoder_dict.o}
-    {$L static/gcc32/entropy_encode.o}
-    {$L static/gcc32/histogram.o}
-    {$L static/gcc32/huffman.o}
-    {$L static/gcc32/literal_cost.o}
-    {$L static/gcc32/memory.o}
-    {$L static/gcc32/metablock.o}
-    {$L static/gcc32/state.o}
-    {$L static/gcc32/static_dict.o}
-    {$L static/gcc32/transform.o}
-    {$L static/gcc32/utf8_util.o}
+    {$L Tools/Brotli/static/gcc32/backward_references.o}
+    {$L Tools/Brotli/static/gcc32/backward_references_hq.o}
+    {$L Tools/Brotli/static/gcc32/bit_cost.o}
+    {$L Tools/Brotli/static/gcc32/bit_reader.o}
+    {$L Tools/Brotli/static/gcc32/block_splitter.o}
+    {$L Tools/Brotli/static/gcc32/brotli_bit_stream.o}
+    {$L Tools/Brotli/static/gcc32/cluster.o}
+    {$L Tools/Brotli/static/gcc32/compress_fragment.o}
+    {$L Tools/Brotli/static/gcc32/compress_fragment_two_pass.o}
+    {$L Tools/Brotli/static/gcc32/decode.o}
+    {$L Tools/Brotli/static/gcc32/dictionary.o}
+    {$L Tools/Brotli/static/gcc32/dictionary_hash.o}
+    {$L Tools/Brotli/static/gcc32/encode.o}
+    {$L Tools/Brotli/static/gcc32/encoder_dict.o}
+    {$L Tools/Brotli/static/gcc32/entropy_encode.o}
+    {$L Tools/Brotli/static/gcc32/histogram.o}
+    {$L Tools/Brotli/static/gcc32/huffman.o}
+    {$L Tools/Brotli/static/gcc32/literal_cost.o}
+    {$L Tools/Brotli/static/gcc32/memory.o}
+    {$L Tools/Brotli/static/gcc32/metablock.o}
+    {$L Tools/Brotli/static/gcc32/state.o}
+    {$L Tools/Brotli/static/gcc32/static_dict.o}
+    {$L Tools/Brotli/static/gcc32/transform.o}
+    {$L Tools/Brotli/static/gcc32/utf8_util.o}
   {$ELSE CPU386}
-    {$L static/gcc64/backward_references.o}
-    {$L static/gcc64/backward_references_hq.o}
-    {$L static/gcc64/bit_cost.o}
-    {$L static/gcc64/bit_reader.o}
-    {$L static/gcc64/block_splitter.o}
-    {$L static/gcc64/brotli_bit_stream.o}
-    {$L static/gcc64/cluster.o}
-    {$L static/gcc64/compress_fragment.o}
-    {$L static/gcc64/compress_fragment_two_pass.o}
-    {$L static/gcc64/decode.o}
-    {$L static/gcc64/dictionary.o}
-    {$L static/gcc64/dictionary_hash.o}
-    {$L static/gcc64/encode.o}
-    {$L static/gcc64/encoder_dict.o}
-    {$L static/gcc64/entropy_encode.o}
-    {$L static/gcc64/histogram.o}
-    {$L static/gcc64/huffman.o}
-    {$L static/gcc64/literal_cost.o}
-    {$L static/gcc64/memory.o}
-    {$L static/gcc64/metablock.o}
-    {$L static/gcc64/state.o}
-    {$L static/gcc64/static_dict.o}
-    {$L static/gcc64/transform.o}
-    {$L static/gcc64/utf8_util.o}
+    {$L Tools/Brotli/static/gcc64/backward_references.o}
+    {$L Tools/Brotli/static/gcc64/backward_references_hq.o}
+    {$L Tools/Brotli/static/gcc64/bit_cost.o}
+    {$L Tools/Brotli/static/gcc64/bit_reader.o}
+    {$L Tools/Brotli/static/gcc64/block_splitter.o}
+    {$L Tools/Brotli/static/gcc64/brotli_bit_stream.o}
+    {$L Tools/Brotli/static/gcc64/cluster.o}
+    {$L Tools/Brotli/static/gcc64/compress_fragment.o}
+    {$L Tools/Brotli/static/gcc64/compress_fragment_two_pass.o}
+    {$L Tools/Brotli/static/gcc64/decode.o}
+    {$L Tools/Brotli/static/gcc64/dictionary.o}
+    {$L Tools/Brotli/static/gcc64/dictionary_hash.o}
+    {$L Tools/Brotli/static/gcc64/encode.o}
+    {$L Tools/Brotli/static/gcc64/encoder_dict.o}
+    {$L Tools/Brotli/static/gcc64/entropy_encode.o}
+    {$L Tools/Brotli/static/gcc64/histogram.o}
+    {$L Tools/Brotli/static/gcc64/huffman.o}
+    {$L Tools/Brotli/static/gcc64/literal_cost.o}
+    {$L Tools/Brotli/static/gcc64/memory.o}
+    {$L Tools/Brotli/static/gcc64/metablock.o}
+    {$L Tools/Brotli/static/gcc64/state.o}
+    {$L Tools/Brotli/static/gcc64/static_dict.o}
+    {$L Tools/Brotli/static/gcc64/transform.o}
+    {$L Tools/Brotli/static/gcc64/utf8_util.o}
   {$ENDIF CPU386}
 {$ENDIF LINUX}
 
@@ -553,7 +553,7 @@ var
 begin
   if Compress then
   begin
-    if not BrotliCompress(Data, Temp, bemGeneric,
+    if not BrotliCompress(Data, Temp, bemText,
       {$IFDEF CPU386}
         BROTLI_QUALITY_COMPRESS_X32
       {$ELSE}

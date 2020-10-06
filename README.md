@@ -100,7 +100,7 @@ Section: `SYSTEM\CurrentControlSet\Services\HTTP\Parameters`
 
 Key: `DisableServerHeader: DWORD = 2`
 
-## Enagle dynamic Brotli compression
+## Enable dynamic Brotli compression
 
 Unfortunatelly default mORMot HTTP Server always use first registered compression in case when several compression options are available.
 To enable Brotli support for on-the-fly generated (HTML, JSON, XML, etc.) content do the next:

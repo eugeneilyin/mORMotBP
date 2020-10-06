@@ -198,7 +198,7 @@ Feel free to contact me at **@gmail.com**: **eugene.ilyin**
 [boilerplate]: https://html5boilerplate.com
 [synopse-mormot]: https://synopse.info/fossil/wiki?name=SQLite3+Framework
 [releases]: https://github.com/eugeneilyin/mORMotBP/releases
-[options]: https://github.com/eugeneilyin/mORMotBP/blob/master/BoilerplateHTTPServer.pas
+[options]: https://github.com/eugeneilyin/mORMotBP/blob/master/BoilerplateHTTPServer.pas#L130
 [dist]: /Dist
 [security-headers]: https://securityheaders.com
 [kiran-kurapaty]: https://kurapaty.wordpress.com/about-2

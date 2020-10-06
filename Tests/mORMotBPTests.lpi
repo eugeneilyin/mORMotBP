@@ -41,6 +41,9 @@
             <VerifyObjMethodCallValidity Value="True"/>
             <TargetCPU Value="x86_64"/>
             <TargetOS Value="linux"/>
+            <Optimizations>
+              <OptimizationLevel Value="2"/>
+            </Optimizations>
           </CodeGeneration>
           <Linking>
             <Debugging>
@@ -90,6 +93,9 @@
             <VerifyObjMethodCallValidity Value="True"/>
             <TargetCPU Value="i386"/>
             <TargetOS Value="win32"/>
+            <Optimizations>
+              <OptimizationLevel Value="2"/>
+            </Optimizations>
           </CodeGeneration>
           <Linking>
             <Debugging>
@@ -139,6 +145,9 @@
             <VerifyObjMethodCallValidity Value="True"/>
             <TargetCPU Value="x86_64"/>
             <TargetOS Value="win64"/>
+            <Optimizations>
+              <OptimizationLevel Value="2"/>
+            </Optimizations>
           </CodeGeneration>
           <Linking>
             <Debugging>
@@ -182,7 +191,7 @@
             <TargetCPU Value="i386"/>
             <TargetOS Value="linux"/>
             <Optimizations>
-              <OptimizationLevel Value="3"/>
+              <OptimizationLevel Value="2"/>
             </Optimizations>
           </CodeGeneration>
           <Linking>
@@ -225,7 +234,7 @@
             <TargetCPU Value="x86_64"/>
             <TargetOS Value="linux"/>
             <Optimizations>
-              <OptimizationLevel Value="3"/>
+              <OptimizationLevel Value="2"/>
             </Optimizations>
           </CodeGeneration>
           <Linking>
@@ -268,7 +277,7 @@
             <TargetCPU Value="i386"/>
             <TargetOS Value="win32"/>
             <Optimizations>
-              <OptimizationLevel Value="3"/>
+              <OptimizationLevel Value="2"/>
             </Optimizations>
           </CodeGeneration>
           <Linking>
@@ -283,9 +292,6 @@
               <ShowHints Value="False"/>
             </Verbosity>
             <CustomOptions Value="-dRELEASE"/>
-            <OtherDefines Count="1">
-              <Define0 Value="RELEASE"/>
-            </OtherDefines>
           </Other>
         </CompilerOptions>
       </Item7>
@@ -311,7 +317,7 @@
             <TargetCPU Value="x86_64"/>
             <TargetOS Value="win64"/>
             <Optimizations>
-              <OptimizationLevel Value="3"/>
+              <OptimizationLevel Value="2"/>
             </Optimizations>
           </CodeGeneration>
           <Linking>
@@ -341,7 +347,7 @@
       <FormatVersion Value="2"/>
       <Modes Count="0"/>
     </RunParams>
-    <Units Count="4">
+    <Units Count="6">
       <Unit0>
         <Filename Value="mORMotBPTests.dpr"/>
         <IsPartOfProject Value="True"/>
@@ -358,6 +364,14 @@
         <Filename Value="BoilerplateTests.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
+      <Unit4>
+        <Filename Value="../CSP.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit4>
+      <Unit5>
+        <Filename Value="../Brotli.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit5>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -387,6 +401,9 @@
       <VerifyObjMethodCallValidity Value="True"/>
       <TargetCPU Value="i386"/>
       <TargetOS Value="linux"/>
+      <Optimizations>
+        <OptimizationLevel Value="2"/>
+      </Optimizations>
     </CodeGeneration>
     <Linking>
       <Debugging>

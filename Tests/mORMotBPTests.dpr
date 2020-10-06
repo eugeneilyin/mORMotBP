@@ -13,7 +13,7 @@ For Delphi 2007 IDE and above:
   Project / Options / Build Events / Pre-build events / Commands
 
     (if you don't see the "Build Events" section: save, close and reopen
-    the project. This is known issue on old IDEs when .dproj missed)
+    the project. This is known issue in old IDEs when .dproj is recreated)
 
 For Delphi 6/7/2005/2006 IDE:
 
@@ -46,7 +46,7 @@ program mORMotBPTests;
 {$R Assets.res}
 
 uses
-  {$I SynDprUses.inc} // will enable FastMM4 prior to Delphi 2006, and enable FPC on linux
+  {$I SynDprUses.inc} // enable FastMM4 prior to Delphi 2006, and enable FPC on Linux
   BoilerplateAssets in '../BoilerplateAssets.pas',
   BoilerplateHTTPServer in '../BoilerplateHTTPServer.pas',
   CSP in '../CSP.pas',

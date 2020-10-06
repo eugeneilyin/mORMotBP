@@ -87,3 +87,23 @@ Version 2.2
   - New CSP unit to handle Content Security Policy Level 2 / Level 3
   - Add TBoilerplateHTTPServer.ContentSecurityPolicyReportOnly property
   - BoilerplateAssets content types normalization
+
+Version 2.3
+  - Upgrade Assets to HTML Boilerplate v8.0.0
+  - Upgrade options to Apache Server Configs v4.0.0
+  - Upgrade Brotli compression to v1.0.9
+  - Add support of 1490 MIME Types file extensions from IANA, Apache, and Mozilla
+    See KnownMIMETypes.Value as an alternative to SynCommons.GetMimeContentType
+  - bpoDelegateUnauthorizedTo404 set content for HTTP 401 "Unauthorized" 
+    response code equals to '/404'
+  - bpoDelegateNotAcceptableTo404 set content for HTTP 406 "Not Acceptable" 
+    response code equals to '/404'
+  - bpoDelegateHidden block access to all hidden files and directories except 
+    for the visible content from within the "/.well-known/" hidden directory
+  - bpoDisableTRACEMethod prevents TRACE requests being made via JavaScript
+  - TStrictSSL supports strictSSLIncludeSubDomainsPreload
+  - DNSPrefetchControl property to control DNS prefetching
+  - TAssets.SaveToFile now forces file directories before save and returns 
+    boolean success value
+  - assetslz didn't store compressed content if it size is greater than the size
+    of the identity content (which prevents unnecessary bundle increase)

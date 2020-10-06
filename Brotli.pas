@@ -1,14 +1,16 @@
 /// Wrapper over Brotli compression
+//
 // Brotli is a generic-purpose lossless compression algorithm that compresses
 // data using a combination of a modern variant of the LZ77 algorithm,
 // Huffman coding and 2nd order context modeling, with a compression ratio
 // comparable to the best currently available general-purpose compression
 // methods. It is similar in speed with deflate but offers more dense
 // compression:
-// https://github.com/google/brotli
 //
 // The specification of the Brotli Compressed Data Format is defined in RFC 7932:
 // https://tools.ietf.org/html/rfc7932
+//
+// https://github.com/google/brotli
 unit Brotli;
 
 (*
@@ -27,6 +29,9 @@ unit Brotli;
 
   Version 1.9
   - first release, associated with the MormotBP project
+
+  Version 2.3
+  - upgrade to Brotli v1.0.9
 *)
 
 interface
@@ -75,7 +80,7 @@ type
 /// Compress data using the Brotli algorithm
 // - Data
 //     Data to compress
-// - Encoded 
+// - Encoded
 //     Compressed data
 // - Mode
 //     Compression mode. See TBrotliEncoderMode.
@@ -145,19 +150,24 @@ implementation
     {$L Tools\Brotli\static\bcc32\block_splitter.obj}
     {$L Tools\Brotli\static\bcc32\brotli_bit_stream.obj}
     {$L Tools\Brotli\static\bcc32\cluster.obj}
+    {$L Tools\Brotli\static\bcc32\command.obj}
     {$L Tools\Brotli\static\bcc32\compress_fragment.obj}
     {$L Tools\Brotli\static\bcc32\compress_fragment_two_pass.obj}
+    {$L Tools\Brotli\static\bcc32\constants.obj}
+    {$L Tools\Brotli\static\bcc32\context.obj}
     {$L Tools\Brotli\static\bcc32\decode.obj}
     {$L Tools\Brotli\static\bcc32\dictionary.obj}
     {$L Tools\Brotli\static\bcc32\dictionary_hash.obj}
     {$L Tools\Brotli\static\bcc32\encode.obj}
     {$L Tools\Brotli\static\bcc32\encoder_dict.obj}
     {$L Tools\Brotli\static\bcc32\entropy_encode.obj}
+    {$L Tools\Brotli\static\bcc32\fast_log.obj}
     {$L Tools\Brotli\static\bcc32\histogram.obj}
     {$L Tools\Brotli\static\bcc32\huffman.obj}
     {$L Tools\Brotli\static\bcc32\literal_cost.obj}
     {$L Tools\Brotli\static\bcc32\memory.obj}
     {$L Tools\Brotli\static\bcc32\metablock.obj}
+    {$L Tools\Brotli\static\bcc32\platform.obj}
     {$L Tools\Brotli\static\bcc32\state.obj}
     {$L Tools\Brotli\static\bcc32\static_dict.obj}
     {$L Tools\Brotli\static\bcc32\transform.obj}
@@ -170,19 +180,24 @@ implementation
     {$L Tools\Brotli\static\bcc64\block_splitter.o}
     {$L Tools\Brotli\static\bcc64\brotli_bit_stream.o}
     {$L Tools\Brotli\static\bcc64\cluster.o}
+    {$L Tools\Brotli\static\bcc64\command.o}
     {$L Tools\Brotli\static\bcc64\compress_fragment.o}
     {$L Tools\Brotli\static\bcc64\compress_fragment_two_pass.o}
+    {$L Tools\Brotli\static\bcc64\constants.o}
+    {$L Tools\Brotli\static\bcc64\context.o}
     {$L Tools\Brotli\static\bcc64\decode.o}
     {$L Tools\Brotli\static\bcc64\dictionary.o}
     {$L Tools\Brotli\static\bcc64\dictionary_hash.o}
     {$L Tools\Brotli\static\bcc64\encode.o}
     {$L Tools\Brotli\static\bcc64\encoder_dict.o}
     {$L Tools\Brotli\static\bcc64\entropy_encode.o}
+    {$L Tools\Brotli\static\bcc64\fast_log.o}
     {$L Tools\Brotli\static\bcc64\histogram.o}
     {$L Tools\Brotli\static\bcc64\huffman.o}
     {$L Tools\Brotli\static\bcc64\literal_cost.o}
     {$L Tools\Brotli\static\bcc64\memory.o}
     {$L Tools\Brotli\static\bcc64\metablock.o}
+    {$L Tools\Brotli\static\bcc64\platform.o}
     {$L Tools\Brotli\static\bcc64\state.o}
     {$L Tools\Brotli\static\bcc64\static_dict.o}
     {$L Tools\Brotli\static\bcc64\transform.o}
@@ -198,19 +213,24 @@ implementation
     {$L Tools/Brotli/static/gcc32/block_splitter.o}
     {$L Tools/Brotli/static/gcc32/brotli_bit_stream.o}
     {$L Tools/Brotli/static/gcc32/cluster.o}
+    {$L Tools/Brotli/static/gcc32/command.o}
     {$L Tools/Brotli/static/gcc32/compress_fragment.o}
     {$L Tools/Brotli/static/gcc32/compress_fragment_two_pass.o}
+    {$L Tools/Brotli/static/gcc32/constants.o}
+    {$L Tools/Brotli/static/gcc32/context.o}
     {$L Tools/Brotli/static/gcc32/decode.o}
     {$L Tools/Brotli/static/gcc32/dictionary.o}
     {$L Tools/Brotli/static/gcc32/dictionary_hash.o}
     {$L Tools/Brotli/static/gcc32/encode.o}
     {$L Tools/Brotli/static/gcc32/encoder_dict.o}
     {$L Tools/Brotli/static/gcc32/entropy_encode.o}
+    {$L Tools/Brotli/static/gcc32/fast_log.o}
     {$L Tools/Brotli/static/gcc32/histogram.o}
     {$L Tools/Brotli/static/gcc32/huffman.o}
     {$L Tools/Brotli/static/gcc32/literal_cost.o}
     {$L Tools/Brotli/static/gcc32/memory.o}
     {$L Tools/Brotli/static/gcc32/metablock.o}
+    {$L Tools/Brotli/static/gcc32/platform.o}
     {$L Tools/Brotli/static/gcc32/state.o}
     {$L Tools/Brotli/static/gcc32/static_dict.o}
     {$L Tools/Brotli/static/gcc32/transform.o}
@@ -223,19 +243,24 @@ implementation
     {$L Tools/Brotli/static/gcc64/block_splitter.o}
     {$L Tools/Brotli/static/gcc64/brotli_bit_stream.o}
     {$L Tools/Brotli/static/gcc64/cluster.o}
+    {$L Tools/Brotli/static/gcc64/command.o}
     {$L Tools/Brotli/static/gcc64/compress_fragment.o}
     {$L Tools/Brotli/static/gcc64/compress_fragment_two_pass.o}
+    {$L Tools/Brotli/static/gcc64/constants.o}
+    {$L Tools/Brotli/static/gcc64/context.o}
     {$L Tools/Brotli/static/gcc64/decode.o}
     {$L Tools/Brotli/static/gcc64/dictionary.o}
     {$L Tools/Brotli/static/gcc64/dictionary_hash.o}
     {$L Tools/Brotli/static/gcc64/encode.o}
     {$L Tools/Brotli/static/gcc64/encoder_dict.o}
     {$L Tools/Brotli/static/gcc64/entropy_encode.o}
+    {$L Tools/Brotli/static/gcc64/fast_log.o}
     {$L Tools/Brotli/static/gcc64/histogram.o}
     {$L Tools/Brotli/static/gcc64/huffman.o}
     {$L Tools/Brotli/static/gcc64/literal_cost.o}
     {$L Tools/Brotli/static/gcc64/memory.o}
     {$L Tools/Brotli/static/gcc64/metablock.o}
+    {$L Tools/Brotli/static/gcc64/platform.o}
     {$L Tools/Brotli/static/gcc64/state.o}
     {$L Tools/Brotli/static/gcc64/static_dict.o}
     {$L Tools/Brotli/static/gcc64/transform.o}
@@ -298,6 +323,7 @@ procedure _BrotliStoreUncompressedMetaBlock; cdecl; external;
 procedure _BrotliWarmupBitReader; cdecl; external;
 procedure _BrotliZopfliComputeShortestPath; cdecl; external;
 procedure _BrotliZopfliCreateCommands; cdecl; external;
+procedure _kBrotliBitMask; cdecl; external;
 procedure _kStaticDictionaryHashWords; cdecl; external;
 procedure _kStaticDictionaryHashLengths; cdecl; external;
 {$ELSE}
@@ -348,6 +374,7 @@ procedure BrotliStoreUncompressedMetaBlock; cdecl; external;
 procedure BrotliWarmupBitReader; cdecl; external;
 procedure BrotliZopfliComputeShortestPath; cdecl; external;
 procedure BrotliZopfliCreateCommands; cdecl; external;
+procedure kBrotliBitMask; cdecl; external;
 procedure kStaticDictionaryHashWords; cdecl; external;
 procedure kStaticDictionaryHashLengths; cdecl; external;
 {$ENDIF}
@@ -638,15 +665,13 @@ function _brotliLog(X: Double): Double; cdecl; export;
 {$IFDEF WIN64}
 function _brotliLog(X: Double): Double; cdecl; export;
 {$ENDIF WIN64}
-{$IFDEF FPC}
-{$IFDEF LINUX}
+{$IFDEF FPC}{$IFDEF LINUX}
 function brotliLog(X: Double): Double; cdecl; export;
 {$ENDIF}
 {$ENDIF FPC}
 begin
   Result := Ln(X);
 end;
-
 {$IFDEF WIN64}
 function brotliLog(X: Double): Double; cdecl; export;
 begin
@@ -667,8 +692,8 @@ asm
   jmp System.@_llmul
 end;
 
-function __ftol: Int64;
 // Borland C++ float to integer (Int64) conversion
+function __ftol: Int64;
 asm
   jmp System.@Trunc  // FST(0) -> EDX:EAX, as expected by BCC32 compiler
 end;
@@ -682,6 +707,7 @@ const
   __huge_dble: Double = 1e300;
 var
   __turboFloat: Word; { not used, but must be present for linking }
+
 {$ENDIF WIN32}
 
 {$IFDEF WIN64}
@@ -692,20 +718,19 @@ var
 // stack probe by poking all pages in the new stack area. The number of bytes
 // that will be allocated is passed in RAX.
 //
-// See: $(BDS)\source\cpprtl\Source\memory\chkstk.nasm
+// See $(BDS)\source\cpprtl\Source\memory\chkstk.nasm
 procedure __chkstk;
 asm
-  lea r10, [rsp]
-  mov r11, r10
-  sub r11, rax
-  and r11w, 0f000h
-  and r10w, 0f000h
-@loop1:
-  sub r10, 01000h
-  cmp r10, r11 // more to go?
-  jl @exit
-  mov qword [r10], 0 // probe this page
-  jmp @loop1
+        lea     r10, [rsp]
+        mov     r11, r10
+        sub     r11, rax
+        and     r11w, 0f000h
+        and     r10w, 0f000h
+@loop:  sub     r10, 01000h
+        cmp     r10, r11       // more to go?
+        jl      @exit
+        mov     qword [r10], 0 // probe this page
+        jmp     @loop
 @exit:
 end;
 
@@ -716,3 +741,4 @@ const
 {$ENDIF FPC}
 
 end.
+

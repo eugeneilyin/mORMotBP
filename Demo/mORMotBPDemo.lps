@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="11"/>
+    <BuildModes Active="Win 64"/>
+    <Units Count="4">
+      <Unit0>
+        <Filename Value="mORMotBPDemo.dpr"/>
+        <IsPartOfProject Value="True"/>
+        <UsageCount Value="20"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="..\BoilerplateAssets.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <WindowIndex Value="-1"/>
+        <TopLine Value="-1"/>
+        <CursorPos X="-1" Y="-1"/>
+        <UsageCount Value="20"/>
+      </Unit1>
+      <Unit2>
+        <Filename Value="..\BoilerplateHTTPServer.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="-1"/>
+        <WindowIndex Value="-1"/>
+        <TopLine Value="-1"/>
+        <CursorPos X="-1" Y="-1"/>
+        <UsageCount Value="20"/>
+      </Unit2>
+      <Unit3>
+        <Filename Value="..\..\mORMot\SynCrtSock.pas"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="6646"/>
+        <CursorPos X="7" Y="6653"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+        <DefaultSyntaxHighlighter Value="Delphi"/>
+      </Unit3>
+    </Units>
+    <JumpHistory Count="1">
+      <Position1>
+        <Filename Value="mORMotBPDemo.dpr"/>
+      </Position1>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes Count="0" ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>

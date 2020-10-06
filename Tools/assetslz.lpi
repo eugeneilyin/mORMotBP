@@ -41,7 +41,7 @@
             <TargetCPU Value="x86_64"/>
             <TargetOS Value="linux"/>
             <Optimizations>
-              <OptimizationLevel Value="3"/>
+              <OptimizationLevel Value="2"/>
             </Optimizations>
           </CodeGeneration>
           <Linking>
@@ -84,7 +84,7 @@
         <IsPartOfProject Value="True"/>
       </Unit2>
       <Unit3>
-        <Filename Value="Brotli/Brotli.pas"/>
+        <Filename Value="../Brotli.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit3>
     </Units>
@@ -97,7 +97,7 @@
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../mORMot"/>
       <Libraries Value="Brotli;Zopfli"/>
-      <OtherUnitFiles Value="../../mORMot;Brotli;Zopfli"/>
+      <OtherUnitFiles Value="..;Zopfli;../../mORMot"/>
       <UnitOutputDirectory Value="Temp"/>
     </SearchPaths>
     <Parsing>
@@ -112,7 +112,7 @@
       <TargetCPU Value="i386"/>
       <TargetOS Value="linux"/>
       <Optimizations>
-        <OptimizationLevel Value="3"/>
+        <OptimizationLevel Value="2"/>
       </Optimizations>
     </CodeGeneration>
     <Linking>

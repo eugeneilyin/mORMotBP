@@ -27,11 +27,27 @@ uses
   SysUtils,
   SynCommons,
   SynZip,
+  Brotli in '..\Brotli.pas',
   Zopfli in 'Zopfli\Zopfli.pas',
-  Brotli in 'Brotli\Brotli.pas',
   BoilerplateAssets in '..\BoilerplateAssets.pas';
 
 {$I MinPE.inc}
+
+var
+  Root: TFileName;
+  ArchiveName: TFileName;
+  GZipLevel: Integer = 9;
+  GZipUsed: Boolean = False;
+  ZopfliNumIterations: Integer = 15;
+  ZopfliBlockSplittingMax: Integer = 15;
+  BrotliQuality: Integer = 11;
+  BrotliWindowsBits: Integer = 24;
+  Extensions: TFileName = 'appcache,atom,bmp,css,cur,eot,geojson,htc,html,' +
+    'ico,ics,js,json,jsonld,map,markdown,md,mjs,otf,rdf,rss,svg,topojson,ttc,' +
+    'ttf,txt,vcard,vcf,vtt,wasm,webapp,webmanifest,xhtml,xloc,xml';
+
+type
+  TParseParametersResult = (pprSuccess, pprWriteManual, pprError);
 
 procedure WriteManual;
 begin
@@ -46,11 +62,11 @@ begin
   Writeln('    /E or -E      Specifies the comma-separated list of assets extenstions');
   Writeln('                  used for GZip and Brotli compression.');
   Writeln('                  -E means skip compression stage');
-  Writeln('                  -E* means compress all assets (not recommended)');
-  Writeln('                  Default: -Ehtml,css,js,json,svg,atom,mjs,map,topojson,jsonld,');
-  Writeln('                             webmanifest,rdf,rss,geojson,eot,ttf,ttc,wasm,');
-  Writeln('                             webapp,xml,otf,bmp,cur,ico,appcache,ics,markdown,');
-  Writeln('                             md,vcard,vcfxloc,vtt,htc');
+  Writeln('                  -E* means compress all assets');
+  Writeln('                  Default: -Eappcache,atom,bmp,css,cur,eot,geojson,htc,html,');
+  Writeln('                             ico,ics,js,json,jsonld,map,markdown,md,mjs,otf,');
+  Writeln('                             rdf,rss,svg,topojson,ttc,ttf,txt,vcard,vcf,vtt,');
+  Writeln('                             wasm,webapp,webmanifest,xhtml,xloc,xml');
   Writeln('');
   Writeln('    /GZ# or -GZ#  Specifies the GZip compression level.');
   Writeln('                  Range: 0-9');
@@ -80,23 +96,10 @@ begin
   Writeln('                  Default: -BW24');
 end;
 
-var
-  Extensions: string = COMPRESSED_TYPES_CSV;
-  GZipLevel: Integer = 9;
-  GZipUsed: Boolean = False;
-  ZopfliNumIterations: Integer = 15;
-  ZopfliBlockSplittingMax: Integer = 15;
-  BrotliQuality: Integer = 11;
-  BrotliWindowsBits: Integer = 24;
-  Path: string;
-  ArchiveName: string;
-
-type
-  TParseParametersResult = (pprSuccess, pprWriteManual, pprError);
-
 function CheckPrefix(const Param, Prefix: string; out Value: string): Boolean;
 begin
-  Result := (Copy(Param, 1, Length(Prefix) + 1) = '/' + Prefix) or
+  Result :=
+    (Copy(Param, 1, Length(Prefix) + 1) = '/' + Prefix) or
     (Copy(Param, 1, Length(Prefix) + 1) = '-' + Prefix);
   if Result then
     Value := Copy(Param, Length(Prefix) + 2, MaxInt);
@@ -110,7 +113,7 @@ end;
 function ParseParameters: TParseParametersResult;
 var
   Index: Integer;
-  Param, ParamLC, Value: string;
+  Param, ParamLC, ParamValue: string;
 begin
   Result := pprWriteManual;
   for Index := 1 to ParamCount do
@@ -124,55 +127,56 @@ begin
       (ParamLC = '--help') or (ParamLC = '/help') or
       (ParamLC = '-help')  then Exit;
 
-    if CheckPrefix(ParamLC, 'e', Value) then
+    if CheckPrefix(ParamLC, 'e', ParamValue) then
     begin
-      Extensions := Value;
+      Extensions := ParamValue;
       Continue;
     end;
 
-    if CheckPrefix(ParamLC, 'gz', Value) then
+    if CheckPrefix(ParamLC, 'gz', ParamValue) then
     begin
-      if not TryStrToInt(Value, GZipLevel) or
+      if not TryStrToInt(ParamValue, GZipLevel) or
         not CheckRange(GZipLevel, 0, 9) then Exit;
       GZipUsed := True;
       Continue;
     end;
 
-    if CheckPrefix(ParamLC, 'zb', Value) then
+    if CheckPrefix(ParamLC, 'zb', ParamValue) then
     begin
-      if not TryStrToInt(Value, ZopfliBlockSplittingMax) or
+      if not TryStrToInt(ParamValue, ZopfliBlockSplittingMax) or
         not (ZopfliBlockSplittingMax >= 0) then Exit;
       GZipUsed := False;
       Continue;
     end;
 
-    if CheckPrefix(ParamLC, 'z', Value) then
+    if CheckPrefix(ParamLC, 'z', ParamValue) then
     begin
-      if not TryStrToInt(Value, ZopfliNumIterations) or
+      if not TryStrToInt(ParamValue, ZopfliNumIterations) or
         not (ZopfliNumIterations >= 1) then Exit;
       GZipUsed := False;
       Continue;
     end;
 
-    if CheckPrefix(ParamLC, 'bw', Value) then
+    if CheckPrefix(ParamLC, 'bw', ParamValue) then
     begin
-      if not TryStrToInt(Value, BrotliWindowsBits) or
+      if not TryStrToInt(ParamValue, BrotliWindowsBits) or
         not ((BrotliWindowsBits = 0) or
           CheckRange(BrotliWindowsBits, 10, 24)) then Exit;
       Continue;
     end;
 
-    if CheckPrefix(ParamLC, 'b', Value) then
+    if CheckPrefix(ParamLC, 'b', ParamValue) then
     begin
-      if not TryStrToInt(Value, BrotliQuality) or
+      if not TryStrToInt(ParamValue, BrotliQuality) or
         not CheckRange(BrotliQuality, 0, 11) then Exit;
       Continue;
     end;
 
-    if (Param[1] = '-') {$IFDEF MSWINDOWS}or (Param[1] = '/'){$ENDIF} then Exit;
+    if (Param[1] = '-') {$IFDEF MSWINDOWS} or (Param[1] = '/') {$ENDIF} then
+      Exit;
 
-    if Path = '' then
-      Path := ExcludeTrailingPathDelimiter(ExpandFileName(Param))
+    if Root = '' then
+      Root := ExcludeTrailingPathDelimiter(ExpandFileName(Param))
     else
       if ArchiveName = '' then
         ArchiveName := ExpandFileName(Param)
@@ -180,11 +184,11 @@ begin
         Exit;
   end;
 
-  if (Path = '') or (ArchiveName = '') then Exit;
+  if (Root = '') or (ArchiveName = '') then Exit;
 
-  if not (DirectoryExists(Path) or FileExists(Path)) then
+  if not (DirectoryExists(Root) or FileExists(Root)) then
   begin
-    Writeln(Format('Directory or file "%s" not found', [Path]));
+    Writeln(Format('Directory or file "%s" not found', [Root]));
     Result := pprError;
     Exit;
   end;
@@ -217,25 +221,102 @@ begin
   SetString(Data, PAnsiChar(Pointer(Buffer)), P - Pointer(Buffer));
 end;
 
+function SortDynArrayFileName(const A, B): Integer;
+begin
+  Result := AnsiCompareStr(TFileName(A), TFileName(B));
+end;
+
+/// Creates upper-cased, sorted, deduplicated, '.'-prefixed TFileName array
+// ready for O(log(n)) file extension binary search
+procedure UpArrayFromCSV(const ExtsCSV: TFileName; var Exts: TFileNameDynArray);
+var
+  Index, DeduplicateIndex, Count: Integer;
+  P: PChar;
+  ArrayDA: TDynArray;
+  FileExt: TFileName;
+begin
+  if ExtsCSV = '' then
+  begin
+    Exts := nil;
+    Exit;
+  end;
+  ArrayDA.Init(TypeInfo(TFileNameDynArray), Exts, @Count);
+  P := Pointer(ExtsCSV);
+  while P <> nil do
+  begin
+    FileExt := GetNextItemString(P, ',');
+    if FileExt <> '' then
+    begin
+      FileExt := '.' + SysUtils.UpperCase(FileExt);
+      ArrayDA.Add(FileExt);
+    end;
+  end;
+  if Count <= 1 then
+    SetLength(Exts, Count)
+  else begin
+    ArrayDA.Sort(SortDynArrayFileName);
+    DeduplicateIndex := 0;
+    for Index := 1 to Count - 1 do
+      if Exts[DeduplicateIndex] <> Exts[Index] then
+      begin
+        Inc(DeduplicateIndex);
+        if DeduplicateIndex <> Index then
+          Exts[DeduplicateIndex] := Exts[Index];
+      end;
+    SetLength(Exts, DeduplicateIndex + 1);
+  end;
+end;
+
+// Fast O(log(n)) binary search of TFileName value in array
+function FastFindFileNameSorted(const Value: TFileName;
+  const FileNames: TFileNameDynArray): PtrInt;
+var
+  L, R: PtrInt;
+  Compare: Integer;
+begin
+  L := 0;
+  R := High(FileNames);
+  if (Value <> '') and (R >= 0) then
+    repeat
+      Result := (L + R) shr 1;
+      Compare := SortDynArrayFileName(FileNames[Result], Value);
+      if Compare = 0 then Exit;
+      if Compare < 0 then
+        L := Result + 1
+      else
+        R := Result - 1;
+      if L <= R then Continue;
+      Break;
+    until False;
+  Result := -1;
+end;
+
+function GetBrotliEncoderMode(const ContentType: RawUTF8): TBrotliEncoderMode;
+begin
+  if IdemPChar(Pointer(ContentType), 'TEXT/') or
+    (ContentType = 'application/json') or
+    (ContentType = 'application/xml') or
+    (PosEx('+xml', ContentType) > 0) or
+    (PosEx('+json', ContentType) > 0) then
+      Result := bemText
+  else if IdemPChar(Pointer(ContentType), 'FONT/') then
+    Result := bemFont
+  else
+    Result := bemGeneric;
+end;
+
 procedure CreateArchive;
 var
   Index: Integer;
   Assets: TAssets;
   Files: TFindFilesDynArray;
   CompressAll: Boolean;
-  CompressExts: TRawUTF8DynArray;
-
-  function IsCompressionExtension(const Ext: RawUTF8): Boolean;
-  begin
-    Result := CompressAll or
-      (FastLocatePUTF8CharSorted(Pointer(CompressExts), High(CompressExts),
-        Pointer(Ext)) = -1);
-  end;
+  CompressibleExts: TFileNameDynArray;
 
   function AddAsset(const Root, FileName: TFileName): Boolean;
   var
     Asset: PAsset;
-    Encoded: EncodedString;
+    Content: EncodedString;
   begin
     Result := False;
 
@@ -246,29 +327,35 @@ var
       Exit;
     end;
 
-    if IsCompressionExtension(LowerCase(ToUTF8(ExtractFileExt(FileName)))) then
+    if CompressAll or (FastFindFileNameSorted(
+      SysUtils.UpperCase(ExtractFileExt(FileName)), CompressibleExts) >= 0) then
     begin
       if GZipUsed then
       begin
-        Encoded := Asset.Content;
-        CompressGZip(Encoded, GZipLevel);
-        Asset.SetEncoding(Encoded, aeGZip);
+        Content := Asset.Content;
+        CompressGZip(Content, GZipLevel);
+        if Length(Content) < Length(Asset.Content) then
+          Asset.SetContent(Content, aeGZip);
       end else begin
-        if not ZopfliCompress(Asset.Content, Encoded, zfGZip,
+        if not ZopfliCompress(Asset.Content, Content, zfGZip,
           ZopfliNumIterations, ZopfliBlockSplittingMax) then
         begin
           Writeln(Format('Zopfli compression failed: "%s"', [FileName]));
           Exit;
         end;
-        Asset.SetEncoding(Encoded, aeGZip);
+        if Length(Content) < Length(Asset.Content) then
+          Asset.SetContent(Content, aeGZip);
       end;
-      if not BrotliCompress(Asset.Content, Encoded, bemGeneric,
+
+      if not BrotliCompress(Asset.Content, Content,
+        GetBrotliEncoderMode(Asset.ContentType),
         BrotliQuality, BrotliWindowsBits) then
       begin
         Writeln(Format('Brotli compression failed: "%s"', [FileName]));
         Exit;
       end;
-      Asset.SetEncoding(Encoded, aeBrotli);
+      if Length(Content) < Length(Asset.Content) then
+        Asset.SetContent(Content, aeBrotli);
     end;
     Result := True;
   end;
@@ -278,24 +365,29 @@ begin
   Assets.Init;
   CompressAll := Extensions = '*';
   if not CompressAll then
-    ArrayFromCSV(CompressExts, ToUTF8(Extensions));
-  if DirectoryExists(Path) then
+    UpArrayFromCSV(Extensions, CompressibleExts);
+  if DirectoryExists(Root) then
   begin
-    Path := IncludeTrailingPathDelimiter(Path);
-    Files := FindFiles(Path, '*', '', True, True, True);
+    Root := IncludeTrailingPathDelimiter(Root);
+    Files := FindFiles(Root, '*', '', True, True, True);
     for Index := Low(Files) to High(Files) do
-      if not AddAsset(Path, Files[Index].Name) then
+      if not AddAsset(Root, Files[Index].Name) then
       begin
         ExitCode := 1;
         Exit;
       end;
   end else
-    if not AddAsset(ExtractFilePath(Path), Path) then
+    if not AddAsset(ExtractFilePath(Root), Root) then
     begin
       ExitCode := 1;
       Exit;
     end;
-  Assets.SaveToFile(ArchiveName);
+  if not Assets.SaveToFile(ArchiveName) then
+  begin
+    Writeln(Format('Assets save failed: "%s"', [ArchiveName]));
+    ExitCode := 1;
+    Exit;
+  end;
 end;
 
 begin

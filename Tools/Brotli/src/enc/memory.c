@@ -49,6 +49,8 @@ void BrotliInitMemoryManager(
 
 #if defined(BROTLI_ENCODER_EXIT_ON_OOM)
 
+extern void _exit(int status);
+
 void* BrotliAllocate(MemoryManager* m, size_t n) {
   void* result = m->alloc_func(m->opaque, n);
   if (!result) _exit(EXIT_FAILURE);

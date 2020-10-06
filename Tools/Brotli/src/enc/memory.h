@@ -107,8 +107,6 @@ V: value to append
   A[(S) - 1] = (V);                                       \
 }
 
-void _exit(int status);
-
 #if defined(__cplusplus) || defined(c_plusplus)
 }  /* extern "C" */
 #endif

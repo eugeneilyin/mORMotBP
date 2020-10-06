@@ -15,9 +15,11 @@ type
     procedure SpecifyCrossOriginForFonts;
     procedure SpecifyCrossOriginTiming;
     procedure DelegateBadRequestTo404;
+    procedure DelegateUnauthorizedTo404;
     procedure DelegateForbiddenTo404;
     procedure DelegateNotFoundTo404;
     procedure DelegateNotAllowedTo404;
+    procedure DelegateNotAcceptableTo404;
     procedure SetXUACompatible;
     procedure ForceMIMEType;
     procedure ForceTextUTF8Charset;
@@ -27,12 +29,14 @@ type
     procedure SupportWWWRewrite;
     procedure SetXFrameOptions;
     procedure SupportContentSecurityPolicy;
+    procedure DelegateHidden;
     procedure DelegateBlocked;
     procedure SupportStrictSSLOverHTTP;
     procedure SupportStrictSSLOverHTTPS;
     procedure PreventMIMESniffing;
     procedure EnableXSSFilter;
     procedure EnableReferrerPolicy;
+    procedure DisableTRACEMethod;
     procedure DeleteXPoweredBy;
     procedure FixMangledAcceptEncoding;
     procedure ForceGZipHeader;
@@ -85,9 +89,7 @@ type
 implementation
 
 uses
-  {$IFDEF MSWINDOWS}
-  Windows,
-  {$ENDIF}
+  {$IFDEF MSWINDOWS} Windows, {$ENDIF}
   SysUtils,
   SynCommons,
   SynCrtSock,
@@ -146,6 +148,16 @@ type
     property UseSSL: boolean read FUseSSL write FUseSSL;
   end;
 
+{ TSQLRestServerURI }
+
+  TSQLRestServerURI = class(TSQLRestServerFullMemory)
+  protected
+    FCustomStatus: Cardinal;
+    procedure URI(var Call: TSQLRestURIParams); override;
+  public
+    property CustomStatus: Cardinal read FCustomStatus write FCustomStatus;
+  end;
+
 { TBoilerplateHTTPServerSteps }
 
   TBoilerplateHTTPServerSteps = class(TBoilerplateHTTPServer)
@@ -182,8 +194,10 @@ type
     procedure GivenStaticFile(const URL: SockString = '');
     procedure GivenModifiedFile(const FileName: TFileName;
       const KeepTimeStamp, KeepSize: Boolean);
+    procedure GivenCustomStatus(const Status: Cardinal);
     procedure WhenRequest(const URL: SockString = '';
-      const Host: SockString = ''; const UseSSL: Boolean = False);
+      const Host: SockString = ''; const UseSSL: Boolean = False;
+      const Method: SockString = 'GET');
     procedure ThenOutHeaderValueIs(const aName, aValue: RawUTF8);
     procedure ThenOutContentIsEmpty;
     procedure ThenOutContentEqualsFile(const FileName: TFileName); overload;
@@ -235,15 +249,6 @@ begin
   Result.FileTimestampMonitorAfterSeconds := 0;
   Result.ExtensionForNotExistingTemplate := '';
   Result.Helpers := nil;
-end;
-
-{ TBoilerplateFeatures }
-
-procedure TBoilerplateFeatures.Scenarios;
-begin
-  AddCase(TBoilerplateHTTPServerShould);
-  AddCase(TCSP2Should);
-  AddCase(TCSP3Should);
 end;
 
 { TBoilerplateHTTPServerShould }
@@ -415,8 +420,8 @@ begin
 
     GivenClearServer;
     GivenAssets;
-    GivenContentSecurityPolicyReportOnly(
-      CSP.Init.ObjectSrc.WithSelf.CSP.ScriptSrc.WithSelf.CSP.Policy);
+    GivenContentSecurityPolicyReportOnly(SockString(
+      CSP.Init.ObjectSrc.WithSelf.CSP.ScriptSrc.WithSelf.CSP.Policy));
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Content-Security-Policy-Report-Only',
       'object-src ''self''; script-src ''self''');
@@ -490,7 +495,7 @@ begin
     GivenClearServer;
     GivenAssets;
     GivenStrictSSL(strictSSLOff);
-    WhenRequest('/index.html');
+    WhenRequest('/index.html', '', True);
     ThenOutHeaderValueIs('Strict-Transport-Security', '');
     ThenOutContentEqualsFile('Assets\index.html');
     ThenRequestResultIs(HTTP_SUCCESS);
@@ -498,17 +503,27 @@ begin
     GivenClearServer;
     GivenAssets;
     GivenStrictSSL(strictSSLOn);
-    WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Strict-Transport-Security', 'max-age=16070400');
+    WhenRequest('/index.html', '', True);
+    ThenOutHeaderValueIs('Strict-Transport-Security',
+      'max-age=31536000');
     ThenOutContentEqualsFile('Assets\index.html');
     ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
     GivenAssets;
     GivenStrictSSL(strictSSLIncludeSubDomains);
-    WhenRequest('/index.html');
+    WhenRequest('/index.html', '', True);
     ThenOutHeaderValueIs('Strict-Transport-Security',
-      'max-age=16070400; includeSubDomains');
+      'max-age=31536000; includeSubDomains');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLIncludeSubDomainsPreload);
+    WhenRequest('/index.html', '', True);
+    ThenOutHeaderValueIs('Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains; preload');
     ThenOutContentEqualsFile('Assets\index.html');
     ThenRequestResultIs(HTTP_SUCCESS);
   end;
@@ -541,6 +556,15 @@ begin
     GivenClearServer;
     GivenAssets;
     GivenStrictSSL(strictSSLIncludeSubDomains);
+    WhenRequest('/index.html', '', True);
+    ThenOutHeaderValueIs('Strict-Transport-Security',
+      'max-age=31536000; includeSubDomains');
+    ThenOutContentEqualsFile('Assets\index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenStrictSSL(strictSSLIncludeSubDomainsPreload);
     WhenRequest('/index.html', '', True);
     ThenOutHeaderValueIs('Strict-Transport-Security',
       'max-age=31536000; includeSubDomains; preload');
@@ -826,6 +850,86 @@ begin
   end;
 end;
 
+procedure TBoilerplateHTTPServerShould.DelegateHidden;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    GivenAssets;
+    WhenRequest('/.hidden/sample.txt');
+    ThenOutContentEqualsFile('Assets\.hidden\sample.txt');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateHidden]);
+    WhenRequest('/.hidden/sample.txt');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenOptions([]);
+    GivenAssets;
+    WhenRequest('/img/.hidden/marmot.jpg');
+    ThenOutContentEqualsFile('Assets\img\.hidden\marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateHidden]);
+    WhenRequest('/img/.hidden/marmot.jpg');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateHidden]);
+    WhenRequest('/.well-known/acme-challenge/sample.txt');
+    ThenOutContentEqualsFile('Assets\.well-known\acme-challenge\sample.txt');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/.well-known/.hidden/sample.txt');
+    ThenOutContentEqualsFile('Assets\.well-known\.hidden\sample.txt');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateHidden]);
+    WhenRequest('/.well-known/.hidden/sample.txt');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DelegateNotAcceptableTo404;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(
+    Self, False, T404Application.Create));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    GivenCustomStatus(HTTP_NOTACCEPTABLE);
+    WhenRequest('root/Record/1');
+    ThenRequestResultIs(HTTP_NOTACCEPTABLE);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateNotAcceptableTo404]);
+    WhenRequest('root/Record/1');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutContentEqualsFile('Assets\404.html');
+  end;
+end;
+
 procedure TBoilerplateHTTPServerShould.DelegateNotAllowedTo404;
 var
   Auto: IAutoFree; // This variable required only under FPC
@@ -909,6 +1013,30 @@ begin
   end;
 end;
 
+procedure TBoilerplateHTTPServerShould.DelegateUnauthorizedTo404;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(
+    Self, False, T404Application.Create));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenOptions([]);
+    GivenCustomStatus(HTTP_UNAUTHORIZED);
+    WhenRequest('root/Record/1');
+    ThenRequestResultIs(HTTP_UNAUTHORIZED);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDelegateUnauthorizedTo404]);
+    WhenRequest('root/Record/1');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutContentEqualsFile('Assets\404.html');
+  end;
+end;
+
 procedure TBoilerplateHTTPServerShould.DeleteServerInternalState;
 var
   Auto: IAutoFree; // This variable required only under FPC
@@ -954,6 +1082,28 @@ begin
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('X-Powered-By', '');
     ThenRequestResultIs(HTTP_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.DisableTRACEMethod;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/index.html', '', False, 'TRACE');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoDisableTRACEMethod]);
+    WhenRequest('/index.html', '', False, 'TRACE');
+    ThenRequestResultIs(HTTP_NOTALLOWED);
   end;
 end;
 
@@ -1069,7 +1219,7 @@ begin
   begin
     GivenClearServer;
     GivenAssets;
-    LastModified := DateTimeToHTTPDate(FAssets.Find('/index.html').Modified);
+    LastModified := DateTimeToHTTPDate(FAssets.Find('/index.html').Timestamp);
 
     GivenClearServer;
     GivenAssets;
@@ -1133,7 +1283,35 @@ begin
     GivenAssets;
     GivenOptions([bpoEnableReferrerPolicy]);
     WhenRequest('/index.html');
-    ThenOutHeaderValueIs('Referrer-Policy', 'no-referrer-when-downgrade');
+    ThenOutHeaderValueIs('Referrer-Policy', 'strict-origin-when-cross-origin');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    WhenRequest('/sample.css');
+    ThenOutHeaderValueIs('Referrer-Policy', 'strict-origin-when-cross-origin');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    WhenRequest('/sample.js');
+    ThenOutHeaderValueIs('Referrer-Policy', 'strict-origin-when-cross-origin');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    WhenRequest('/sample.xml');
+    ThenOutHeaderValueIs('Referrer-Policy', 'strict-origin-when-cross-origin');
+    ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([bpoEnableReferrerPolicy]);
+    WhenRequest('/sample.pdf');
+    ThenOutHeaderValueIs('Referrer-Policy', 'strict-origin-when-cross-origin');
     ThenRequestResultIs(HTTP_SUCCESS);
 
     GivenClearServer;
@@ -1564,9 +1742,58 @@ begin
   begin
     GivenClearServer;
     GivenAssets;
+    GivenOptions([]);
     WhenRequest('/img/marmot.jpg');
     ThenOutContentEqualsFile('Assets\img\marmot.jpg');
     ThenRequestResultIs(HTTP_SUCCESS);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'HEAD');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'POST');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'PUT');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'DELETE');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'CONNECT');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'OPTIONS');
+    ThenRequestResultIs(HTTP_NOCONTENT);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'TRACE');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    GivenClearServer;
+    GivenAssets;
+    GivenOptions([]);
+    WhenRequest('/img/marmot.jpg', '', False, 'PATCH');
+    ThenRequestResultIs(HTTP_NOTFOUND);
   end;
 end;
 
@@ -1869,7 +2096,7 @@ begin
     GivenExpires('text/html=8y');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control',
-      FormatUTF8('max-age=%', [8 * 365 * SecsPerDay]));
+      FormatUTF8('max-age=%', [8 * 12 * 2629746]));
 
     GivenClearServer;
     GivenAssets;
@@ -1877,7 +2104,7 @@ begin
     GivenExpires('text/html=9Y');
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Cache-Control',
-      FormatUTF8('max-age=%', [9 * 365 * SecsPerDay]));
+      FormatUTF8('max-age=%', [9 * 12 * 2629746]));
   end;
 end;
 
@@ -2094,7 +2321,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=8y');
-    LExpires := DateTimeToHTTPDate(NowUTC + 8 * 365);
+    LExpires := DateTimeToHTTPDate(NowUTC + 8 * 12 * 2629746 / SecsPerDay);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2102,7 +2329,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=9Y');
-    LExpires := DateTimeToHTTPDate(NowUTC + 9 * 365);
+    LExpires := DateTimeToHTTPDate(NowUTC + 9 * 12 * 2629746 / SecsPerDay);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
   end;
@@ -3548,6 +3775,20 @@ begin
     'SourceList: SHA512Hash64');
 end;
 
+{ TSQLRestServerURI }
+
+procedure TSQLRestServerURI.URI(var Call: TSQLRestURIParams);
+begin
+  if CustomStatus > 0 then
+  begin
+    Call.OutHead := 'Content-Type: text/html; charset=utf-8';
+    Call.OutBody := '';
+    Call.OutStatus := CustomStatus;
+  end else
+    inherited;
+end;
+
+
 { TBoilerplateHTTPServerSteps }
 
 procedure TBoilerplateHTTPServerSteps.GivenOptions(
@@ -3620,6 +3861,11 @@ begin
   ContentSecurityPolicyReportOnly := Value;
 end;
 
+procedure TBoilerplateHTTPServerSteps.GivenCustomStatus(const Status: Cardinal);
+begin
+  TSQLRestServerURI(FServer).CustomStatus := Status;
+end;
+
 procedure TBoilerplateHTTPServerSteps.GivenModifiedFile(
   const FileName: TFileName;
   const KeepTimeStamp, KeepSize: Boolean);
@@ -3666,12 +3912,13 @@ end;
 constructor TBoilerplateHTTPServerSteps.Create(const TestCase: TSynTestCase;
   const Auth: Boolean; AApplication: IBoilerplateApplication; AUseSSL: Boolean);
 const
-  DEFAULT_PORT = {$IFDEF MSWINDOWS} '888' {$ELSE} '8888' {$ENDIF MSWINDOWS};
+  DEFAULT_SOCKET_PORT = '127.0.0.1:9000';
   SERVER_SECURITY: array[Boolean] of TSQLHTTPServerSecurity = (secNone, secSSL);
 begin
+  RemoteIPLocalHostAsVoidInServers := False;
   FTestCase := TestCase;
   FModel := TSQLModel.Create([TSQLRecord]);
-  FServer := TSQLRestServerFullMemory.Create(FModel, Auth);
+  FServer := TSQLRestServerURI.Create(FModel, Auth);
   FApplication := AApplication;
   if FApplication = nil then
   begin
@@ -3689,8 +3936,9 @@ begin
       TMVCApplication(ObjectFromInterface(FApplication)).Start(
         FServer, TypeInfo(IBoilerplateApplication));
   FContext := THttpServerRequestStub.Create(nil, 0, nil);
-  inherited Create(DEFAULT_PORT, FServer, '+', useHttpSocket,
-    @FServerAccessRights, 0, SERVER_SECURITY[AUseSSL]);
+  inherited Create(DEFAULT_SOCKET_PORT, FServer, '+', useHttpSocket,
+    @FServerAccessRights, 2, SERVER_SECURITY[AUseSSL]);
+  DomainHostRedirect('127.0.0.1', 'root');
   DomainHostRedirect('localhost', 'root');
 end;
 
@@ -3708,6 +3956,10 @@ end;
 
 destructor TBoilerplateHTTPServerSteps.Destroy;
 begin
+  THTTPServer(FHttpServer).ServerKeepAliveTimeOut := 0;
+  THTTPServer(FHttpServer).Sock.KeepAlive := 10;
+  THTTPServer(FHttpServer).Sock.SendTimeout := 10;
+  THTTPServer(FHttpServer).Sock.ReceiveTimeout := 10;
   inherited Destroy;
   FContext.Free;
   FApplication := nil;
@@ -3736,7 +3988,8 @@ begin
   Asset := FAssets.Find(Path);
   FTestCase.CheckUTF8(Asset <> nil, 'Asset not found ''%''', [Path]);
   FTestCase.CheckUTF8(GetFileContent(FileName) = Asset.Content,
-    'Non-equal content between file ''%'' and asset ''%''', [FileName, Path]);
+    'Unexpected not equal content between file ''%'' and asset ''%''',
+    [FileName, Path]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenFileContentIsNotEqualToAsset(
@@ -3747,7 +4000,8 @@ begin
   Asset := FAssets.Find(Path);
   FTestCase.CheckUTF8(Asset <> nil, 'Asset not found ''%''', [Path]);
   FTestCase.CheckUTF8(GetFileContent(FileName) <> Asset.Content,
-    'Equal content between file ''%'' and asset ''%''', [FileName, Path]);
+    'Unexpected equal content between file ''%'' and asset ''%''',
+    [FileName, Path]);
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenFileTimeStampAndSizeIsEqualToAsset(
@@ -3764,10 +4018,10 @@ begin
       StringReplace(FullFileName(FileName), '\', PathDelim, [rfReplaceAll]),
         @Modified, @Size),
     'GetFileInfo failed ''%''', [FileName]);
-  FTestCase.CheckUTF8(Round((Modified - Asset.Modified) * SecsPerDay) = 0,
+  FTestCase.CheckUTF8(Round((Modified - Asset.Timestamp) * SecsPerDay) = 0,
     'File modified are not equal to asset file=%, asset=%', [
       FormatDateTime('YYYY-MM-DD HH:NN:SS.ZZZ', Modified),
-      FormatDateTime('YYYY-MM-DD HH:NN:SS.ZZZ', Asset.Modified)]);
+      FormatDateTime('YYYY-MM-DD HH:NN:SS.ZZZ', Asset.Timestamp)]);
   FTestCase.CheckUTF8(Size = Length(Asset.Content),
     'File size are not equal to asset file=%, asset=%',
       [Size, Length(Asset.Content)]);
@@ -3845,14 +4099,14 @@ begin
 end;
 
 procedure TBoilerplateHTTPServerSteps.WhenRequest(const URL: SockString;
-  const Host: SockString; const UseSSL: Boolean);
+  const Host: SockString; const UseSSL: Boolean; const Method: SockString);
 begin
   if URL <> '' then
     FContext.URL := URL;
   if Host <> '' then
     FContext.InHeaders :=
       FormatUTF8('%Host: %'#$D#$A, [FContext.InHeaders, Host]);
-  FContext.Method := 'GET';
+  FContext.Method := Method;
   FContext.UseSSL := UseSSL;
   FContext.Result := inherited Request(FContext);
 end;
@@ -3920,6 +4174,15 @@ end;
 procedure T404Application._404(const Dummy: Integer; out Scope: Variant);
 begin
   Is404Called := True;
+end;
+
+{ TBoilerplateFeatures }
+
+procedure TBoilerplateFeatures.Scenarios;
+begin
+  AddCase(TBoilerplateHTTPServerShould);
+  AddCase(TCSP2Should);
+  AddCase(TCSP3Should);
 end;
 
 end.

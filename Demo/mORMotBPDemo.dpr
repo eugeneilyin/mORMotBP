@@ -46,7 +46,7 @@ program mORMotBPDemo;
 {$R Assets.res}
 
 uses
-  {$I SynDprUses.inc} // will enable FastMM4 prior to Delphi 2006, and enable FPC on linux
+  {$I SynDprUses.inc} // enable FastMM4 prior to Delphi 2006, and enable FPC on Linux
   SynCommons,
   mORMot,
   mORMotHttpServer,

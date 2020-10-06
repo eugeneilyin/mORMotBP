@@ -21,7 +21,7 @@ GOTO END
 :RUN
 
 SET PROJECT_PATH=%~1
-"%PROJECT_PATH%..\Tools\assetslz" -GZ1 -B1 "%PROJECT_PATH%..\Assets" "%PROJECT_PATH%Assets.tmp"
+"%PROJECT_PATH%..\Tools\assetslz" -GZ1 -B1 "%PROJECT_PATH%\Assets" "%PROJECT_PATH%Assets.tmp"
 "%PROJECT_PATH%..\Tools\resedit" -D "%PROJECT_PATH%Assets.res" rcdata ASSETS "%PROJECT_PATH%Assets.tmp"
 
 :END

@@ -20,8 +20,9 @@ unit CSP;
 
 interface
 
-{$I Synopse.inc} // define HASINLINE USETYPEINFO CPU32 CPU64 OWNNORMTOUPPER
-{$IFDEF VER200}{$UNDEF HASINLINE}{$ENDIF} // Delphi 2009 has inlines issues
+{$I Synopse.inc} // define HASINLINE CPU32 CPU64
+
+{$IFDEF VER200}{$UNDEF HASINLINE}{$ENDIF} // Delphi 2009 has inlining issues
 
 uses
   SynCommons,
@@ -54,64 +55,64 @@ type
 
     /// Assign to the specific CSP directive
     procedure Init(ACSP: PCSP2; const ADirective: TCSP2Directive);
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific source to the directive source list,
     // used by other methods below
     function Add(const Source: SockString): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Empty source list and add signle "'none'" directive
     // 'none' must not be mixed with other values
-    function None: PCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function None: PCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "null" host source
-    function Null: PCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Null: PCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "*" source (not recommended for production)
-    function Any: PCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Any: PCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme}:" source
     // Section 7. Authors SHOULD NOT include either "'unsafe-inline'" or "data:"
     // as valid sources in their policies.
     function Scheme(const AScheme: SockString): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme}://{host}:{port}{path}" source
     function Host(
       const AScheme, AHost, APort, APath: SockString): PCSP2SourceList;
-        overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+        overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{host}" source
     function Host(const AHost: SockString): PCSP2SourceList; overload;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'self'" source
-    function WithSelf: PCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function WithSelf: PCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'unsafe-inline'" source
     // Section 7. Authors SHOULD NOT include either 'unsafe-inline' or data:
     // as valid sources in their policies.
-    function UnsafeInline: PCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function UnsafeInline: PCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'unsafe-eval'" source
-    function UnsafeEval: PCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function UnsafeEval: PCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'nonce-{value}'" source as a random generated sequence with
     // specific length.
     // Section 4.2. The generated value SHOULD be at least 128 bits long
     // (before encoding), and generated via a cryptographically secure random
     // number generator.
-    function NonceLen(out Base64EncodedNonce: SockString;
+    function NonceLen(var Base64EncodedNonce: SockString;
       const NonceLength: Integer = 256): PCSP2SourceList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'nonce-{value}'" source
     // Section 4.2. The generated value SHOULD be at least 128 bits long
     // (before encoding), and generated via a cryptographically secure random
     // number generator.
     function Nonce(const ANonce: RawByteString): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'nonce-{value}'" where value is random generated
     // Base64 encoded sequence
@@ -119,61 +120,61 @@ type
     // (before encoding), and generated via a cryptographically secure random
     // number generator.
     function Nonce64(const Base64EncodedNonce: SockString): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" where value is a Base64 encodd hash calculated on
     // the provided content
     function SHA256(const Content: RawByteString;
       const PBase64EncodedHash: PSockString = nil): PCSP2SourceList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" with Base64 encoded hash
     function SHA256Hash(const Hash: THash256): PCSP2SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" with Base64 encoded hash
     function SHA256Hash(const Hash: RawByteString): PCSP2SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" with provided Base64 encoded hash
     function SHA256Hash64(const Base64EncodedHash: SockString): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" where value is a Base64 encodd hash calculated on
     // the provided content
     function SHA384(const Content: RawByteString;
       const PBase64EncodedHash: PSockString = nil): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" with Base64 encoded hash
     function SHA384Hash(const Hash: THash384): PCSP2SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" with Base64 encoded hash
     function SHA384Hash(const Hash: RawByteString): PCSP2SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" with provided Base64 encoded hash
     function SHA384Hash64(const Base64EncodedHash: SockString): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" where value is a Base64 encodd hash calculated on
     // the provided content
     function SHA512(const Content: RawByteString;
       const PBase64EncodedHash: PSockString = nil): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" with Base64 encoded hash
     function SHA512Hash(const Hash: THash512): PCSP2SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" with Base64 encoded hash
     function SHA512Hash(const Hash: RawByteString): PCSP2SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" with provided Base64 encoded hash
     function SHA512Hash64(const Base64EncodedHash: SockString): PCSP2SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content security policy level 2 frame ancestors
@@ -182,31 +183,31 @@ type
     CSP: PCSP2;
 
     /// Assign to the specific CSP
-    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE}inline;{$ENDIF}
+    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific source to the directive source list,
     // used by other methods below
     function Add(const Value: SockString): PCSP2FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'none'" source
     function None: PCSP2FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme}:" source
     // Section 7. Authors SHOULD NOT include either "'unsafe-inline'" or "data:"
     // as valid sources in their policies.
     function Scheme(const AScheme: SockString): PCSP2FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme}://{host}:{port}{path}" source
     function Host(const AScheme, AHost,
       APort, APath: SockString): PCSP2FrameAncestors;
-        overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+        overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{host}" source
     function Host(const AHost: SockString): PCSP2FrameAncestors;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content security policy level 2 media type list
@@ -215,17 +216,17 @@ type
     CSP: PCSP2;
 
     /// Assign to the specific CSP
-    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE}inline;{$ENDIF}
+    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific source to the directive source list,
     // used by other methods below
     function Add(const Value: SockString): PCSP2MediaTypeList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "<type>/<subtype>" source
     function MediaType(
       const AMediaType, AMediaSubtype: SockString): PCSP2MediaTypeList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content security policy level 2 URI references
@@ -234,16 +235,16 @@ type
     CSP: PCSP2;
 
     /// Assign to the specific CSP
-    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE}inline;{$ENDIF}
+    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific URI to the directive URI list,
     // used by method below
     function Add(const Value: SockString): PCSP2URIReferences;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add URI reference for reports sending
     function Reference(const URIReference: SockString): PCSP2URIReferences;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content security policy level 2 sandbox tokens
@@ -252,43 +253,43 @@ type
     CSP: PCSP2;
 
     /// Assign to the specific CSP
-    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE}inline;{$ENDIF}
+    procedure Init(ACSP: PCSP2); {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific token to the directive token list,
     // used by other methods below
     function Add(const Value: SockString = ''): PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Clear all sandbox tokens and add empty token
-    function Empty: PCSP2SandboxTokens; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Empty: PCSP2SandboxTokens; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add URI reference for reports sending
     function Token(const AToken: SockString): PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-forms' flag
     function AllowForms: PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-pointer-lock' flag
     function AllowPointerLock: PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-popups' flag
     function AllowPopups: PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-same-origin' flag
     function AllowSameOrigin: PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-scripts' flag
     function AllowScripts: PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-top-navigtion' flag
     function AllowTopNavigation: PCSP2SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content Security Policy level 2
@@ -300,62 +301,65 @@ type
     Cache: SockString;
   public
     /// Initialize structure
-    function Init: PCSP2; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Init: PCSP2; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'base-uri' directive
-    function BaseURI: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function BaseURI: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'child-src' directive
-    function ChildSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ChildSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'connect-src' directive
-    function ConnectSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ConnectSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'default-src' directive
-    function DefaultSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function DefaultSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'font-src' directive
-    function FontSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function FontSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'form-action' directive
-    function FormAction: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function FormAction: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'frame-ancestors' directive
     function FrameAncestors: TCSP2FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'img-src' directive
-    function ImgSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ImgSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'media-src' directive
-    function MediaSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function MediaSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'object-src' directive
-    function ObjectSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ObjectSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'plugin-types' directive
-    function PluginTypes: TCSP2MediaTypeList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function PluginTypes: TCSP2MediaTypeList;
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'report-uri' directive
-    function ReportURI: TCSP2URIReferences; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ReportURI: TCSP2URIReferences; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'sandbox' directive
-    function Sandbox: TCSP2SandboxTokens; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Sandbox: TCSP2SandboxTokens; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'script-src' directive
-    function ScriptSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ScriptSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'style-src' directive
-    function StyleSrc: TCSP2SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function StyleSrc: TCSP2SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Computes and cache security policy content
     function Policy: SockString;
 
     /// Computes 'Content-Security-Policy' HTTP header
-    function HTTPHeader: SockString; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function HTTPHeader: SockString;
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Computes 'Content-Security-Policy-Report-Only' HTTP header
-    function HTTPHeaderReportOnly: SockString; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function HTTPHeaderReportOnly: SockString;
+      {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   // Content security policy level 3 forward declarations
@@ -390,22 +394,22 @@ type
 
     /// Assign to the specific CSP directive
     procedure Init(ACSP: PCSP3; const ADirective: TCSP3Directive);
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific source to the directive source list,
     // used by other methods below
     function Add(const Source: SockString): PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Empty source list and add signle "'none'" directive
     // 'none' must not be mixed with other values
-    function None: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function None: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "null" host source
-    function Null: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Null: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "*" host source (not recommended for production)
-    function Any: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Any: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme-part}:" source
     // Section 6. In either case, developers SHOULD NOT include either
@@ -414,7 +418,7 @@ type
     // document itself; they are best avoided completely.
     // - AScheme is defined in section 3.1 of RFC 3986.
     function Scheme(const AScheme: SockString): PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme-part}://{host-part}:{port-part}{path-part}" source
     // - AScheme is defined in section 3.1 of RFC 3986.
@@ -424,37 +428,37 @@ type
     //         https://tools.ietf.org/html/rfc3986#section-3.3
     function Host(
       const AScheme, AHost, APort, APath: SockString): PCSP3SourceList;
-        overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+        overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{host}" source
     function Host(const AHost: SockString): PCSP3SourceList; overload;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'self'" keyword source
-    function WithSelf: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function WithSelf: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'unsafe-inline'" keyword source
     // Section 6. In either case, developers SHOULD NOT include either
     // 'unsafe-inline', or data: as valid sources in their policies.
     // Both enable XSS attacks by allowing code to be included directly in the
     // document itself; they are best avoided completely.
-    function UnsafeInline: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function UnsafeInline: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'unsafe-eval'" keyword source
-    function UnsafeEval: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function UnsafeEval: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'strict-dynamic'" keyword source
-    function StrictDynamic: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function StrictDynamic: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'unsafe-hashes'" keyword source
-    function UnsafeHashes: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function UnsafeHashes: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'report-sample'" keyword source
-    function ReportSample: PCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ReportSample: PCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'unsafe-allow-redirects'" keyword source
     function UnsafeAllowRedirects: PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'nonce-{value}'" source as a random generated sequence with
     // specific length. The server MUST generate a unique value each time
@@ -463,10 +467,10 @@ type
     // secure random number generator in order to ensure that the value
     // is difficult for an attacker to predict.
     // - AsBase64url is used to specify base64url encoding, instead of base64
-    function NonceLen(out Base64EncodedNonce: SockString;
+    function NonceLen(var Base64EncodedNonce: SockString;
       const NonceLength: Integer = 256;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'nonce-{value}'" source
     // The server MUST generate a unique value each time it transmits a policy.
@@ -477,7 +481,7 @@ type
     // - AsBase64url is used to specify base64url encoding, instead of base64
     function Nonce(const ANonce: RawByteString;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'nonce-{value}'" where value is random generated
     // The server MUST generate a unique value each time it transmits a policy.
@@ -487,7 +491,7 @@ type
     // to predict.
     // Base64 encoded sequence
     function Nonce64(const Base64EncodedNonce: SockString): PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" where value is a Base64 encodd hash calculated on
     // the provided content
@@ -495,23 +499,23 @@ type
     function SHA256(const Content: RawByteString;
       const PBase64EncodedHash: PSockString = nil;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" with Base64 encoded hash
     // - AsBase64url is used to specify base64url encoding, instead of base64
     function SHA256Hash(const Hash: THash256;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" with Base64 encoded hash
     // - AsBase64url is used to specify base64url encoding, instead of base64
     function SHA256Hash(const Hash: RawByteString;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha256-{value}'" with provided Base64 encoded hash
     function SHA256Hash64(const Base64EncodedHash: SockString): PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" where value is a Base64 encodd hash calculated on
     // the provided content
@@ -519,23 +523,23 @@ type
     function SHA384(const Content: RawByteString;
       const PBase64EncodedHash: PSockString = nil;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" with Base64 encoded hash
     // - AsBase64url is used to specify base64url encoding, instead of base64
     function SHA384Hash(const Hash: THash384;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" with Base64 encoded hash
     // - AsBase64url is used to specify base64url encoding, instead of base64
     function SHA384Hash(const Hash: RawByteString;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha384-{value}'" with provided Base64 encoded hash
     function SHA384Hash64(const Base64EncodedHash: SockString): PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" where value is a Base64 encodd hash calculated on
     // the provided content
@@ -543,23 +547,23 @@ type
     function SHA512(const Content: RawByteString;
       const PBase64EncodedHash: PSockString = nil;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" with Base64 encoded hash
     // - AsBase64url is used to specify base64url encoding, instead of base64
     function SHA512Hash(const Hash: THash512;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" with Base64 encoded hash
     // - AsBase64url is used to specify base64url encoding, instead of base64
     function SHA512Hash(const Hash: RawByteString;
       const AsBase64url: Boolean = False): PCSP3SourceList;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'sha512-{value}'" with provided Base64 encoded hash
     function SHA512Hash64(const Base64EncodedHash: SockString): PCSP3SourceList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content security policy level 3 media type list
@@ -568,17 +572,17 @@ type
     CSP: PCSP3;
 
     /// Assign to the specific CSP
-    procedure Init(ACSP: PCSP3); {$IFDEF HASINLINE}inline;{$ENDIF}
+    procedure Init(ACSP: PCSP3); {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific source to the directive source list,
     // used by other methods below
     function Add(const Value: SockString): PCSP3MediaTypeList;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "<type>/<subtype>" source
     function MediaType(
       const AMediaType, AMediaSubtype: SockString): PCSP3MediaTypeList;
-        {$IFDEF HASINLINE}inline;{$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content security policy level 3 sandbox tokens
@@ -587,63 +591,63 @@ type
     CSP: PCSP3;
 
     /// Assign to the specific CSP
-    procedure Init(ACSP: PCSP3); {$IFDEF HASINLINE}inline;{$ENDIF}
+    procedure Init(ACSP: PCSP3); {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific token to the directive token list,
     // used by other methods below
     function Add(const Value: SockString = ''): PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Clear all sandbox tokens and add empty token
-    function Empty: PCSP3SandboxTokens; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Empty: PCSP3SandboxTokens; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add URI reference for reports sending
     function Token(const AToken: SockString): PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-popups' flag
     function AllowPopups: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-top-navigtion' flag
     function AllowTopNavigation: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-top-navigation-by-user-activation' flag
     function AllowTopNavigationByUserActivation: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-same-origin' flag
     function AllowSameOrigin: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-forms' flag
     function AllowForms: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-pointer-lock' flag
     function AllowPointerLock: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-scripts' flag
     function AllowScripts: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-popups-to-escape-sandbox' flag
     function AllowPopupsToEscapeSandbox: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-modals' flag
     function AllowModals: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-orientation-lock' flag
     function AllowOrientationLock: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'allow-presentation' flag
     function AllowPresentation: PCSP3SandboxTokens;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content security policy level 3 frame ancestors
@@ -652,16 +656,16 @@ type
     CSP: PCSP3;
 
     /// Assign to the specific CSP
-    procedure Init(ACSP: PCSP3); {$IFDEF HASINLINE}inline;{$ENDIF}
+    procedure Init(ACSP: PCSP3); {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add the specific source to the directive source list,
     // used by other methods below
     function Add(const Value: SockString): PCSP3FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'none'" source
     function None: PCSP3FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme}:" source
     // Section 6. In either case, developers SHOULD NOT include either
@@ -669,19 +673,19 @@ type
     // Both enable XSS attacks by allowing code to be included directly in the
     // document itself; they are best avoided completely.
     function Scheme(const AScheme: SockString): PCSP3FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{scheme}://{host}:{port}{path}" source
     function Host(const AScheme, AHost,
       APort, APath: SockString): PCSP3FrameAncestors;
-        overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+        overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "{host}" source
     function Host(const AHost: SockString): PCSP3FrameAncestors;
-      overload; {$IFDEF HASINLINE}inline;{$ENDIF}
+      overload; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add "'self'" source
-    function WithSelf: PCSP3FrameAncestors; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function WithSelf: PCSP3FrameAncestors; {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
   /// Content Security Policy Level 3
@@ -695,103 +699,106 @@ type
     SRIRequire: TCSP3SRIRequire;
   public
     /// Initialize structure
-    function Init: PCSP3; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Init: PCSP3; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'child-src' directive
-    function ChildSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ChildSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'connect-src' directive
-    function ConnectSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ConnectSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'default-src' directive
-    function DefaultSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function DefaultSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'font-src' directive
-    function FontSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function FontSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'frame-src' directive
-    function FrameSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function FrameSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'img-src' directive
-    function ImgSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ImgSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'manifest-src' directive
-    function ManifestSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ManifestSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'media-src' directive
-    function MediaSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function MediaSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'prefetch-src' directive
-    function PrefetchSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function PrefetchSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'object-src' directive
-    function ObjectSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ObjectSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'script-src' directive
-    function ScriptSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ScriptSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'script-src-elem' directive
-    function ScriptSrcElem: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ScriptSrcElem: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'script-src-attr' directive
-    function ScriptSrcAttr: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function ScriptSrcAttr: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'style-src' directive
-    function StyleSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function StyleSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'style-src-elem' directive
-    function StyleSrcElem: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function StyleSrcElem: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'style-src-attr' directive
-    function StyleSrcAttr: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function StyleSrcAttr: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'worker-src' directive
-    function WorkerSrc: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function WorkerSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'base-uri' directive
-    function BaseURI: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function BaseURI: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'plugin-types' directive
-    function PluginTypes: TCSP3MediaTypeList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function PluginTypes: TCSP3MediaTypeList;
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'sandbox' directive
-    function Sandbox: TCSP3SandboxTokens; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function Sandbox: TCSP3SandboxTokens; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'form-action' directive
-    function FormAction: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function FormAction: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'frame-ancestors' directive
     function FrameAncestors: TCSP3FrameAncestors;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'navigate-to' directive
-    function NavigateTo: TCSP3SourceList; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function NavigateTo: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'report-to' directive
     function ReportTo(const AToken: SockString): PCSP3;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'block-all-mixed-content' extension directive
     // https://www.w3.org/TR/mixed-content/#block-all-mixed-content
-    function BlockAllMixedContent: PCSP3; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function BlockAllMixedContent: PCSP3; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'upgrade-insecure-requests' extension directive
     // https://www.w3.org/TR/upgrade-insecure-requests/#delivery
-    function UpgradeInsecureRequests: PCSP3; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function UpgradeInsecureRequests: PCSP3;
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Add 'require-sri-for' extension directive
     // https://www.w3.org/TR/SRI/
     function RequireSRIFor(const ASRIRequire: TCSP3SRIRequire): PCSP3;
-      {$IFDEF HASINLINE}inline;{$ENDIF}
+      {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Computes and cache security policy content
     function Policy: SockString;
 
     /// Computes 'Content-Security-Policy' HTTP header
-    function HTTPHeader: SockString; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function HTTPHeader: SockString; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Computes 'Content-Security-Policy-Report-Only' HTTP header
-    function HTTPHeaderReportOnly: SockString; {$IFDEF HASINLINE}inline;{$ENDIF}
+    function HTTPHeaderReportOnly: SockString;
+      {$IFDEF HASINLINE} inline; {$ENDIF}
   end;
 
 implementation
@@ -844,7 +851,7 @@ begin
   Directive := ADirective;
 end;
 
-function TCSP2SourceList.NonceLen(out Base64EncodedNonce: SockString;
+function TCSP2SourceList.NonceLen(var Base64EncodedNonce: SockString;
   const NonceLength: Integer): PCSP2SourceList;
 begin
   Base64EncodedNonce := BinToBase64(TAESPRNG.Main.Fill(NonceLength shr 3));
@@ -1415,7 +1422,7 @@ begin
     Result := Add(FormatUTF8('''nonce-%''', [BinToBase64(ANonce)]));
 end;
 
-function TCSP3SourceList.NonceLen(out Base64EncodedNonce: SockString;
+function TCSP3SourceList.NonceLen(var Base64EncodedNonce: SockString;
   const NonceLength: Integer; const AsBase64url: Boolean): PCSP3SourceList;
 begin
   if AsBase64url then
@@ -1724,7 +1731,8 @@ begin
   Result := Add('allow-top-navigtion');
 end;
 
-function TCSP3SandboxTokens.AllowTopNavigationByUserActivation: PCSP3SandboxTokens;
+function TCSP3SandboxTokens.AllowTopNavigationByUserActivation:
+  PCSP3SandboxTokens;
 begin
   Result := Add('allow-top-navigation-by-user-activation');
 end;

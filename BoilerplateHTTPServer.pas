@@ -749,7 +749,7 @@ type
     /// Add HTTP header value to Context.OutHeaders
     procedure AddCustomHeader(Context: THttpServerRequest;
       const Name, Value: SockString);
-//        {$IFDEF HASINLINE} inline; {$ENDIF}
+        {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Remove HTTP header value from Context.OutHeaders
     function DeleteCustomHeader(Context: THttpServerRequest;

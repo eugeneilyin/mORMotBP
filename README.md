@@ -5,14 +5,14 @@
 <h3>Boilerplate HTTP Server for Synopse mORMot Framework</h3>
 </div>
 
-This project is embedding of **HTML5 Boilerplate** v8.0.0 files and settings into **Synopse mORMot Framework**
-  * [html5boilerplate.com][boilerplate]
-  * [synopse.info][synopse-mormot]
+This project is embedding of **HTML5 Boilerplate** assets and settings into **Synopse mORMot Framework**:
+  * [html5boilerplate.com][boilerplate]<br />HTML5 Boilerplate is a professional front-end template for building fast, robust, and adaptable web apps or sites. It's the product of over 10 years of iterative development and community knowledge. It does not impose a specific development philosophy or framework, so you're free to architect your code in the way that you want. Kick-start your project with the combined knowledge and effort of 100s of developers, all in one little package.
+  * [synopse.info][synopse-mormot]<br />Synopse mORMot is an Open Source Client-Server ORM SOA MVC framework for Delphi and FPC, targeting Windows/Linux for servers, and any platform for clients (including mobile or AJAX).
 
 ## Quick Start
 
-1. Download the latest mORMotBP [release][releases] from GitHub repository
-2. Add `mORMotBP` directory to your library path
+1. Download the latest mORMotBP [release][releases] from the GitHub repository
+2. Add `mORMotBP` directory to your IDE library path
 3. Add the next two **Pre-Build** events to create resource file `Assets.res` with all **h5bp** resources embedded:
   * `"..\Tools\assetslz" "$(PROJECTDIR)\Assets" "$(PROJECTDIR)\Assets.tmp"`
   * `"..\Tools\resedit" -D "$(PROJECTDIR)\Assets.res" rcdata ASSETS "$(PROJECTDIR)\Assets.tmp"`
@@ -24,9 +24,9 @@ This project is embedding of **HTML5 Boilerplate** v8.0.0 files and settings int
 
 * Fully aligned with **HTML5 Boilerplate** HTTP configs with more than [**50+** options and properties][options].
 * Designed for **Delphi 6** up to **Delphi 10.4.1 Sydney**, **Kylix 3** (over CrossKylix), and **FPC**, targeting **Windows** or **Linux**, **32-bit** or **64-bit** architectures.
-* Embed all static assets into application file as highly compressed **synlz** archive (see `assetslz` and `resedit` tools). This allows to build single file distribution fully aligned with **Instant Deployment** approach.
+* Embed all static assets into application file as highly compressed **synlz** archive (see `assetslz` and `resedit` tools). This allows to build single file distribution.
 * Save your cloud hosting **Disk IO** operations by return all static assets from mem-cached repository.
-* Don't spend **CPU cycles** to assets compression, all your assets will be pre-compressed by `assetslz` tool.
+* Don't spend **CPU cycles** to assets compression, all your assets will be pre-compressed by the `assetslz` tool.
 * Support **GZip Level 9** maximum compression.
 * Support **Zopfli** compression (save up to **5-15%** of traffic and delivery time compared to max GZip compression).
 * Support **Brotli** compression as per RFC 7932 (save another **15%-25%** of traffic and delivery time compared to Zopfli compression).
@@ -36,7 +36,7 @@ This project is embedding of **HTML5 Boilerplate** v8.0.0 files and settings int
 * Server-side `Expires` or `Cache-Control: max-age` cache strategies.
 * Different cache busting strategies (see `bpoEnableCacheBusting` and `bpoEnableCacheBustingBeforeExt` options).
 * Fix well-known mangled **Accept-Encoding** values in HTTP headers.
-* Block access to files that can expose sensitive information (see `bpoDelegateBlocked` option).
+* Block access to files that can expose sensitive information (see `bpoDelegateHidden` and `bpoDelegateBlocked` options).
 * Apply many HTTP headers corrections following **HTML5 Boilerplate** settings.
 * Support **Content Security Policy** Level 2 / Level 3 (see `CSP.pas` unit for details).
 * Support **1490 MIME Types** file extensions combined from IANA, Apache, and Mozilla.

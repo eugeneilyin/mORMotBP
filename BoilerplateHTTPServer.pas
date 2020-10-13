@@ -1075,6 +1075,7 @@ const
     bpoForceMIMEType,
     bpoForceTextUTF8Charset,
     bpoForceUTF8Charset,
+    // bpoForceHTTPS,
     // bpoForceHTTPSExceptLetsEncrypt,
     // bpoSetXFrameOptions,
     bpoDelegateHidden,

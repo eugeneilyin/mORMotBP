@@ -48,7 +48,7 @@ type
     csp2StyleSrc);
 
   /// Content security policy level 2 list of sources
-  TCSP2SourceList = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP2SourceList = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP2;
     Directive: TCSP2Directive;
@@ -178,7 +178,7 @@ type
   end;
 
   /// Content security policy level 2 frame ancestors
-  TCSP2FrameAncestors = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP2FrameAncestors = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP2;
 
@@ -211,7 +211,7 @@ type
   end;
 
   /// Content security policy level 2 media type list
-  TCSP2MediaTypeList = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP2MediaTypeList = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP2;
 
@@ -230,7 +230,7 @@ type
   end;
 
   /// Content security policy level 2 URI references
-  TCSP2URIReferences = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP2URIReferences = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP2;
 
@@ -248,7 +248,7 @@ type
   end;
 
   /// Content security policy level 2 sandbox tokens
-  TCSP2SandboxTokens = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP2SandboxTokens = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP2;
 
@@ -293,7 +293,11 @@ type
   end;
 
   /// Content Security Policy level 2
-  TCSP2 = {$IFDEF FPC_OR_UNICODE}record private{$ELSE}object protected{$ENDIF}
+  {$IFDEF FPC_OR_UNICODE}
+    TCSP2 = record private
+  {$ELSE}
+    TCSP2 = object protected
+  {$ENDIF}
   private
     Directives: array[TCSP2Directive] of TSockStringDynArray;
     Counts: array[TCSP2Directive] of PtrInt;
@@ -387,7 +391,7 @@ type
   TCSP3SRIRequire = (csp3SRIScript, csp3SRIStyle, csp3SRIScriptStyle);
 
   /// Content security policy level 3 source List
-  TCSP3SourceList = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP3SourceList = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP3;
     Directive: TCSP3Directive;
@@ -567,7 +571,7 @@ type
   end;
 
   /// Content security policy level 3 media type list
-  TCSP3MediaTypeList = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP3MediaTypeList = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP3;
 
@@ -586,7 +590,7 @@ type
   end;
 
   /// Content security policy level 3 sandbox tokens
-  TCSP3SandboxTokens = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP3SandboxTokens = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP3;
 
@@ -651,7 +655,7 @@ type
   end;
 
   /// Content security policy level 3 frame ancestors
-  TCSP3FrameAncestors = {$IFDEF FPC_OR_UNICODE}record{$ELSE}object{$ENDIF}
+  TCSP3FrameAncestors = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     CSP: PCSP3;
 
@@ -689,7 +693,11 @@ type
   end;
 
   /// Content Security Policy Level 3
-  TCSP3 = {$IFDEF FPC_OR_UNICODE}record private{$ELSE}object protected{$ENDIF}
+  {$IFDEF FPC_OR_UNICODE}
+    TCSP3 = record private
+  {$ELSE}
+    TCSP3 = object protected
+  {$ENDIF}
   private
     Directives: array[TCSP3Directive] of TSockStringDynArray;
     Counts: array[TCSP3Directive] of PtrInt;
@@ -701,78 +709,116 @@ type
     /// Initialize structure
     function Init: PCSP3; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'child-src' directive
+    /// The 'child-src' directive governs the creation of nested browsing
+    // contexts (e.g. iframe and frame navigations) and Worker execution
+    // contexts.
     function ChildSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'connect-src' directive
+    /// The 'connect-src' directive restricts the URLs which can be loaded using
+    // script interfaces.
     function ConnectSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'default-src' directive
+    /// The 'default-src' directive serves as a fallback for the other fetch
+    // directives.
     function DefaultSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'font-src' directive
+    /// The 'font-src' directive restricts the URLs from which font resources
+    // may be loaded.
     function FontSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'frame-src' directive
+    /// The 'frame-src' directive restricts the URLs which may be loaded into
+    // nested browsing contexts.
     function FrameSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'img-src' directive
+    /// The 'img-src' directive restricts the URLs from which image resources
+    // may be loaded.
     function ImgSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'manifest-src' directive
+    /// The 'manifest-src' directive restricts the URLs from which application
+    // manifests may be loaded
     function ManifestSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'media-src' directive
+    /// The 'media-src' directive restricts the URLs from which video, audio,
+    // and associated text track resources may be loaded.
     function MediaSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'prefetch-src' directive
+    /// The 'prefetch-src' directive restricts the URLs from which resources
+    // may be prefetched or prerendered.
     function PrefetchSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'object-src' directive
+    /// The 'object-src' directive restricts the URLs from which plugin content
+    // may be loaded.
     function ObjectSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'script-src' directive
+    /// The 'script-src' directive restricts the locations from which scripts
+    // may be executed. This includes not only URLs loaded directly into script
+    // elements, but also things like inline script blocks and XSLT stylesheets
+    // which can trigger script execution.
     function ScriptSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'script-src-elem' directive
+    /// The 'script-src-elem' directive applies to all script requests and
+    // script blocks.
     function ScriptSrcElem: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'script-src-attr' directive
+    /// The 'script-src-attr' directive applies to event handlers and, if
+    // present, it will override the script-src directive for relevant checks
     function ScriptSrcAttr: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'style-src' directive
+    /// The 'style-src' directive restricts the locations from which style may
+    // be applied to a Document.
     function StyleSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'style-src-elem' directive
+    /// The 'script-src-elem' directive applies to all script requests and
+    // script blocks. Attributes that execute script (inline event handlers) are
+    // controlled via 'script-src-attr'.
     function StyleSrcElem: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'style-src-attr' directive
+    /// The 'script-src-attr' directive specifies valid sources for JavaScript
+    // inline event handlers. This includes only inline script event handlers
+    // like onclick, but not URLs loaded directly into <script> elements.
     function StyleSrcAttr: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'worker-src' directive
+    /// The 'worker-src' directive restricts the URLs which may be loaded as a
+    // Worker, SharedWorker, or ServiceWorker.
     function WorkerSrc: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'base-uri' directive
+    /// The 'base-uri' directive restricts the URLs which can be used in a
+    // Document's base element.
     function BaseURI: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'plugin-types' directive
+    /// The 'plugin-types' directive restricts the set of plugins that can be
+    // embedded into a document by limiting the types of resources which can be
+    // loaded.
     function PluginTypes: TCSP3MediaTypeList;
       {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'sandbox' directive
+    /// The 'sandbox' directive specifies an HTML sandbox policy which the user
+    // agent will apply to a resource, just as though it had been included in an
+    // iframe with a sandbox property.
     function Sandbox: TCSP3SandboxTokens; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'form-action' directive
+    /// The 'form-action' directive restricts the URLs which can be used as the
+    // target of a form submissions from a given context.
     function FormAction: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'frame-ancestors' directive
+    /// The 'frame-ancestors' directive restricts the URLs which can embed the
+    // resource using frame, iframe, object, embed, or applet element. Resources
+    // can use this directive to avoid many UI Redressing attacks, by avoiding
+    // the risk of being embedded into potentially hostile contexts.
     function FrameAncestors: TCSP3FrameAncestors;
       {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'navigate-to' directive
+    /// The 'navigate-to' directive restricts the URLs to which a document can
+    // initiate navigations by any means (a, form, window.location, window.open,
+    // etc.). This is an enforcement on what navigations this document initiates
+    // not on what this document is allowed to navigate to. If the form-action
+    // directive is present, the navigate-to directive will not act on
+    // navigations that are form submissions.
     function NavigateTo: TCSP3SourceList; {$IFDEF HASINLINE} inline; {$ENDIF}
 
-    /// Add 'report-to' directive
+    /// The 'report-to' directive defines a reporting group to which violation
+    // reports ought to be sent. The directive’s behavior is defined in
+    // §5.3 Report a violation.
     function ReportTo(const AToken: SockString): PCSP3;
       {$IFDEF HASINLINE} inline; {$ENDIF}
 

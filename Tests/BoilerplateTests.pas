@@ -59,6 +59,7 @@ type
     procedure RedirectInInherited_404;
     procedure UpdateStaticAsset;
     procedure SetVaryAcceptEncoding;
+    procedure SupportDNSPrefetchControl;
   end;
 
   TCSP2Should = class(TSynTestCase)
@@ -185,6 +186,8 @@ type
     procedure GivenOutHeader(const aName, aValue: RawUTF8);
     procedure GivenServeExactCaseURL(const Value: Boolean = True);
     procedure GivenWWWRewrite(const Value: TWWWRewrite = wwwOff);
+    procedure GivenDNSPrefetchControl(const Value: TDNSPrefetchControl);
+    procedure GivenDNSPrefetchControlContentTypes(const Value: SockString);
     procedure GivenContentSecurityPolicy(const Value: SockString);
     procedure GivenContentSecurityPolicyReportOnly(const Value: SockString);
     procedure GivenStrictSSL(const Value: TStrictSSL);
@@ -434,6 +437,132 @@ begin
     WhenRequest('/img/marmot.jpg');
     ThenOutHeaderValueIs('Content-Security-Policy-Report-Only', '');
     ThenRequestResultIs(HTTP_SUCCESS);
+  end;
+end;
+
+procedure TBoilerplateHTTPServerShould.SupportDNSPrefetchControl;
+var
+  Auto: IAutoFree; // This variable required only under FPC
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    GivenClearServer;
+    GivenAssets;
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', 'on');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControl(dnsPrefetchNone);
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControl(dnsPrefetchOff);
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', 'off');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControl(dnsPrefetchOn);
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', 'on');
+
+    GivenClearServer;
+    GivenAssets;
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControl(dnsPrefetchNone);
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControl(dnsPrefetchOff);
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControl(dnsPrefetchOn);
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('');
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('');
+    GivenDNSPrefetchControl(dnsPrefetchNone);
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('');
+    GivenDNSPrefetchControl(dnsPrefetchOff);
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('');
+    GivenDNSPrefetchControl(dnsPrefetchOn);
+    WhenRequest('/index.html');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('image/jpeg');
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', 'on');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('image/jpeg');
+    GivenDNSPrefetchControl(dnsPrefetchNone);
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', '');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('image/jpeg');
+    GivenDNSPrefetchControl(dnsPrefetchOff);
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', 'off');
+
+    GivenClearServer;
+    GivenAssets;
+    GivenDNSPrefetchControlContentTypes('image/jpeg');
+    GivenDNSPrefetchControl(dnsPrefetchOn);
+    WhenRequest('/img/marmot.jpg');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('X-DNS-Prefetch-Control', 'on');
   end;
 end;
 
@@ -3864,6 +3993,18 @@ end;
 procedure TBoilerplateHTTPServerSteps.GivenCustomStatus(const Status: Cardinal);
 begin
   TSQLRestServerURI(FServer).CustomStatus := Status;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenDNSPrefetchControl(
+  const Value: TDNSPrefetchControl);
+begin
+  DNSPrefetchControl := Value;
+end;
+
+procedure TBoilerplateHTTPServerSteps.GivenDNSPrefetchControlContentTypes(
+  const Value: SockString);
+begin
+  DNSPrefetchControlContentTypes := Value;
 end;
 
 procedure TBoilerplateHTTPServerSteps.GivenModifiedFile(

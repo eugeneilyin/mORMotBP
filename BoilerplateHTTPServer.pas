@@ -926,7 +926,7 @@ type
     /// Specified CSV list of content types used for DNS prefetch control
     property DNSPrefetchControlContentTypes: SockString
       read FDNSPrefetchControlContentTypes
-      write FDNSPrefetchControlContentTypes;
+      write SetDNSPrefetchControlContentTypes;
 
     /// Content Security Policy (CSP)
     //
@@ -2169,6 +2169,13 @@ begin
       Vary := 'Accept-Encoding';
     AddCustomHeader(Context, 'Vary', Vary);
   end;
+
+  if (FDNSPrefetchControl <> dnsPrefetchNone) and
+    InArray(ContentTypeUp, FDNSPrefetchControlContentTypesUpArray) then
+      if FDNSPrefetchControl = dnsPrefetchOn then
+        AddCustomHeader(Context, 'X-DNS-Prefetch-Control', 'on')
+      else
+        AddCustomHeader(Context, 'X-DNS-Prefetch-Control', 'off');
 
   if (Asset <> nil) and (FStaticRoot <> '') then
   begin

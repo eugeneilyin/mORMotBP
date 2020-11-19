@@ -40,6 +40,7 @@ This project is embedding of **HTML5 Boilerplate** assets and settings into **Sy
 * Apply many HTTP headers corrections following **HTML5 Boilerplate** settings.
 * Support **Content Security Policy** Level 2 / Level 3 (see `CSP.pas` unit for details).
 * Support **1490 MIME Types** file extensions combined from IANA, Apache, and Mozilla.
+* Support external computable Assets and URL requests with content/file transfers, cache and redirects (See `.OnGetAsset` event)
 * You can safely replace anywhere your **TSQLHttpServer** with `TBoilerplateHTTPServer = class(TSQLHttpServer)`.
 
 ## Lazarus Free Pascal support

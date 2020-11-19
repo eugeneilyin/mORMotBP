@@ -47,6 +47,11 @@ unit BoilerplateAssets;
     See KnownMIMETypes.Value as an alternative to SynCommons.GetMimeContentType
   - TAssets.SaveToFile now forces file directories before save and returns 
     boolean success value
+
+  Version 2.4
+  - Change TAsset.Timestamp type to TUnixTime for better modifications checks
+  - Add TAssset.Clear method
+  - Add TAssset.Assign method
 *)
 
 interface
@@ -70,10 +75,10 @@ type
   TAsset = {$IFDEF FPC_OR_UNICODE} record {$ELSE} object {$ENDIF}
   public
     Path: RawUTF8;
-    Timestamp: TDateTime;
+    Timestamp: TUnixTime;
+    ContentType: RawUTF8;
     Content: RawByteString;
     ContentHash: Cardinal;
-    ContentType: RawUTF8;
     // We cann't use array[TAssetEncoding] here due to TDynArrayHashed.SaveTo
     // limitations in old Delphi compilers: Delphi 2009 and below. That's why
     // the TAsset structure is provided without nesting.
@@ -83,6 +88,8 @@ type
     BrotliExists: Boolean;
     BrotliContent: RawByteString;
     BrotliHash: Cardinal;
+    procedure Clear;
+    procedure Assign(const Source: TAsset);
     function LoadFromFile(const Root, FileName: TFileName): Boolean;
     procedure SetContent(const AContent: RawByteString;
       const Encoding: TAssetEncoding = aeIdentity);
@@ -123,11 +130,11 @@ type
 procedure CreateDirectories(const DirName: TFileName);
   {$IFDEF HASINLINE} inline; {$ENDIF}
 
-function GetFileInfo(const FileName: TFileName; Modified: PDateTime;
+function GetFileInfo(const FileName: TFileName; Modified: PUnixTime;
   Size: PInt64): Boolean;
 
 function SetFileTime(const FileName: TFileName;
-  const Modified: TDateTime): Boolean; {$IFDEF HASINLINE} inline; {$ENDIF}
+  const Modified: TUnixTime): Boolean; {$IFDEF HASINLINE} inline; {$ENDIF}
 
 var
   /// List of known Media Types (f.k.a. MIME type) with fast O(1) hash retrieval
@@ -140,6 +147,11 @@ var
   KnownMIMETypes: TSynNameValue;
 
 const
+  ASSET_ENCODING_DIRS: array[TAssetEncoding] of TFileName =
+    ('identity', 'gzip', 'brotli');
+
+  ASSET_ENCODING_EXTS: array[TAssetEncoding] of TFileName =
+    ('', '.gz', '.br');
 
   // This is map of Internet media type (f.k.a. MIME type) to file extension
   //
@@ -1661,22 +1673,17 @@ uses
   {$ENDIF KYLIX3}
   Classes;
 
-function GetFileInfo(const FileName: TFileName; Modified: PDateTime;
+function GetFileInfo(const FileName: TFileName; Modified: PUnixTime;
   Size: PInt64): Boolean;
 {$IFDEF MSWINDOWS}
 var
   FA: TWin32FileAttributeData;
-  SystemTime: TSystemTime;
 begin
   Result := GetFileAttributesEx(Pointer(FileName), GetFileExInfoStandard, @FA);
   if not Result then Exit;
 
   if Modified <> nil then
-  begin
-    Result := FileTimeToSystemTime(FA.ftLastWriteTime, SystemTime);
-    if not Result then Exit;
-    Modified^ := SystemTimeToDateTime(SystemTime);
-  end;
+    Modified^ := FileTimeToUnixTime(FA.ftLastWriteTime);
 
   if Size <> nil then
   begin
@@ -1699,7 +1706,7 @@ begin
     if not Result then Exit;
 
     if Modified <> nil then
-      Modified^ := UnixMSTimeToDateTime(TUnixMSTime(sb.st_mtime) * MSecsPerSec);
+      Modified^ :=  sb.st_mtime;
 
     if Size <> nil then
       Size^ := sb.st_size;
@@ -1724,9 +1731,7 @@ begin
     begin
       Result := Libc.fstat(Handle, StatBuf) = 0;
       if not Result then Exit;
-    
-      Modified^ := UnixMSTimeToDateTime(
-        TUnixMSTime(StatBuf.st_mtime) * MSecsPerSec);
+      Modified^ := StatBuf.st_mtime;
     end;
 
     if Size <> nil then
@@ -1752,45 +1757,47 @@ end;
 {$ENDIF}
 
 function SetFileTime(const FileName: TFileName;
-  const Modified: TDateTime): Boolean;
+  const Modified: TUnixTime): Boolean;
 {$IFDEF MSWINDOWS}
+const
+  UnixFileTimeDelta = 116444736000000000; // from year 1601 to 1970
 var
   Handle: THandle;
-  SystemTime: TSystemTime;
-  LModified: TFileTime;
+  FileTime: TFileTime;
+  {$IFDEF CPU64} Nano100: Int64; {$ENDIF}
 begin
-  DateTimeToSystemTime(Modified, SystemTime);
-  Result := SystemTimeToFileTime(SystemTime, LModified);
-  if not Result then Exit;
-
+  {$IFDEF CPU64}
+    Nano100 := Modified * 10000000 + UnixFileTimeDelta;
+    FileTime.dwLowDateTime := PInt64Rec(@Nano100)^.Lo;
+    FileTime.dwHighDateTime := PInt64Rec(@Nano100)^.Hi;
+  {$ELSE} // use PInt64 to avoid URW699 with Delphi 6 / Kylix
+    PInt64(@FileTime)^ := Modified * 10000000 + UnixFileTimeDelta;
+  {$ENDIF}
   Handle := FileOpen(FileName, fmOpenWrite or fmShareDenyNone);
   if Handle = THandle(-1) then
-  begin
-    Result := False;
-    Exit;
+    Result := False
+  else begin
+    Result := Windows.SetFileTime(Handle, @FileTime, @FileTime, @FileTime);
+    FileClose(Handle);
   end;
-  Result := Windows.SetFileTime(Handle, @LModified, @LModified, @LModified);
-  FileClose(Handle);
 end;
 {$ENDIF}
 {$IFDEF FPCLINUX}
 var
   times: UTimBuf;
 begin
-  times.actime := DateTimeToUnixTime(Modified);
-  times.modtime := times.actime;
+  times.actime := Modified;
+  times.modtime := Modified;
   Result := FpUtime(PChar(FileName), @times) = 0;
 end;
 {$ENDIF}
 {$IFDEF KYLIX3}
 var
   AccessModTimes: TAccessModificationTimes;
-  TimeStamp: Int64;
 begin
-  TimeStamp := DateTimeToUnixTime(Modified);
-  AccessModTimes.AccessTime.tv_sec := TimeStamp;
+  AccessModTimes.AccessTime.tv_sec := Modified;
   AccessModTimes.AccessTime.tv_usec := 0;
-  AccessModTimes.ModificationTime.tv_sec := TimeStamp;
+  AccessModTimes.ModificationTime.tv_sec := Modified;
   AccessModTimes.ModificationTime.tv_usec := 0;
   Result := utimes(PChar(FileName), AccessModTimes) = 0;
 end;
@@ -1810,6 +1817,36 @@ begin
 end;
 
 { TAsset }
+
+procedure TAsset.Assign(const Source: TAsset);
+begin
+  Path := Source.Path;
+  Timestamp := Source.Timestamp;
+  Content := Source.Content;
+  ContentHash := Source.ContentHash;
+  ContentType := Source.ContentType;
+  GZipExists := Source.GZipExists;
+  GZipContent := Source.GZipContent;
+  GZipHash := Source.GZipHash;
+  BrotliExists := Source.BrotliExists;
+  BrotliContent := Source.BrotliContent;
+  BrotliHash := Source.BrotliHash;
+end;
+
+procedure TAsset.Clear;
+begin
+  Path := '';
+  Timestamp := 0;
+  ContentType := '';
+  Content := '';
+  ContentHash := 0;
+  GZipExists := False;
+  GZipContent := '';
+  GZipHash := 0;
+  BrotliExists := False;
+  BrotliContent := '';
+  BrotliHash := 0;
+end;
 
 function TAsset.LoadFromFile(const Root, FileName: TFileName): Boolean;
 var
@@ -1852,7 +1889,7 @@ end;
 function TAsset.SaveIdentityToFile(const Root: TFileName;
   const ChecksNotModified: TFileChecks): TFileName;
 var
-  LModified: TDateTime;
+  LModified: TUnixTime;
   LSize: Int64;
   FileModified: Boolean;
 begin
@@ -1874,11 +1911,9 @@ begin
     begin
       FileModified := False;
       if fcModified in ChecksNotModified then
-        FileModified := FileModified or
-          (Round((LModified - Timestamp) * SecsPerDay) <> 0);
+        FileModified := LModified <> Timestamp;
       if fcSize in ChecksNotModified then
-        FileModified := FileModified or
-          (FileSize(Result) <> Length(Content));
+        FileModified := FileModified or (FileSize(Result) <> Length(Content));
       if not FileModified then Exit;
     end;
 
@@ -1891,11 +1926,8 @@ end;
 function TAsset.SaveToFile(const Root: TFileName;
   const Encoding: TAssetEncoding;
   const ChecksNotModified: TFileChecks): TFileName;
-const
-  DIRS: array[TAssetEncoding] of TFileName = ('identity', 'gzip', 'brotli');
-  EXTS: array[TAssetEncoding] of TFileName = ('', '.gz', '.br');
 var
-  LModified: TDateTime;
+  LModified: TUnixTime;
   LSize: Int64;
   FileModified: Boolean;
   FileContent: RawByteString;
@@ -1928,22 +1960,21 @@ begin
   {$ENDIF}
 
   if Root = '' then
-    Result := DIRS[Encoding] + Result
+    Result := ASSET_ENCODING_DIRS[Encoding] + Result
   else if Root[Length(Root)] = PathDelim then
-    Result := Root + DIRS[Encoding] + Result
+    Result := Root + ASSET_ENCODING_DIRS[Encoding] + Result
   else
-    Result := Root + PathDelim + DIRS[Encoding] + Result;
+    Result := Root + PathDelim + ASSET_ENCODING_DIRS[Encoding] + Result;
 
   if Encoding in [aeGZip, aeBrotli] then
-    Result := Result + EXTS[Encoding];
+    Result := Result + ASSET_ENCODING_EXTS[Encoding];
 
   if (ChecksNotModified <> []) and FileExists(Result) and
     GetFileInfo(Result, @LModified, @LSize) then
     begin
       FileModified := False;
       if fcModified in ChecksNotModified then
-        FileModified := FileModified or
-          (Round((LModified - Timestamp) * SecsPerDay) <> 0);
+        FileModified := LModified <> Timestamp;
       if fcSize in ChecksNotModified then
         FileModified := FileModified or
           (FileSize(Result) <> Length(FileContent));

@@ -108,6 +108,8 @@ unit BoilerplateHTTPServer;
   - TStrictSSL supports strictSSLIncludeSubDomainsPreload
   - DNSPrefetchControl property to control DNS prefetching
 
+  Version 2.4
+  - Add TBoilerplateHTTPServer.OnGetAsset for external assets support
 *)
 
 interface
@@ -554,11 +556,11 @@ type
     // https://www.stevesouders.com/blog/2008/08/23/revving-filenames-dont-use-querystring/
     bpoEnableCacheBustingBeforeExt,
 
-    // Delete content generation for '' and '/' URLs to '/index.html'
-    bpoDelegateRootToIndex,
-
     /// Remove 'Server-InternalState' HTTP header
     bpoDeleteServerInternalState,
+
+    // Delete content generation for '' and '/' URLs to '/index.html'
+    bpoDelegateRootToIndex,
 
     /// Instead of index.html rendering the inherited "/Default" URL will be called
     // It allows to inject custom IMVCApplication.Default() interface method
@@ -669,6 +671,13 @@ type
 
 type
 
+  THTTPAssetType = (atContent, atFile, atMovedPermanentlyRedirect,
+    atFoundRedirect, atSeeOtherRedirect, atTemporaryRedirect,
+    atPermanentRedirect);
+
+  THTTPGetAssetEvent = function(const Path: RawUTF8;
+    var AssetType: THTTPAssetType; var Asset: TAsset): Boolean of object;
+
   /// TBoilerplateHTTPServer
   TBoilerplateHTTPServer = class(TSQLHttpServer)
   protected
@@ -705,6 +714,7 @@ type
     FStaticRoot: TFileName;
     FCustomOptions: TSynNameValue;
     FCustomOptionPrefixes: TSynNameValue;
+    FOnGetAsset: THTTPGetAssetEvent;
 
     /// Init assets and set properties default values
     procedure Init; virtual;
@@ -769,6 +779,12 @@ type
     /// Converts "text/html=1m", "image/x-icon=1w", etc. expires to seconds
     function ExpiresToSecs(const Value: RawUTF8): PtrInt;
       {$IFNDEF VER180}{$IFDEF HASINLINE} inline; {$ENDIF}{$ENDIF}
+
+    /// Converts asset unix timestamp to text in HTTP-like format
+    // - i.e. "Tue, 15 Nov 1994 12:45:26 GMT" to be used as a value of
+    // "Date", "Expires" or "Last-Modified" HTTP headers
+    // - handle UTC/GMT time zone
+    function UnixTimeToHTTPDate(const Value: TUnixTime): RawUTF8;
 
     /// Get number of seconds, when content will be expired
     function GetExpires(const ContentTypeUp: SockString): PtrInt;
@@ -1055,6 +1071,8 @@ type
 
     /// TBoilerplateOption.bpoSetExpires
     property Expires: SockString read FExpires write SetExpires;
+
+    property OnGetAsset: THTTPGetAssetEvent read FOnGetAsset write FOnGetAsset;
   end;
 
 const
@@ -1666,8 +1684,9 @@ var
   ServerModified: RawUTF8;
 begin
   Result := not (CheckETag or CheckModified);
+  if Result then Exit;
 
-  if not Result and CheckETag then
+  if CheckETag then
   begin
     FastSetString(ServerHash, PRawUTF8(SERVER_HASH), Length(SERVER_HASH));
     if Encoding = aeIdentity then
@@ -1680,21 +1699,23 @@ begin
       BinToHexDisplay(@Asset.BrotliHash,
         Pointer(@ServerHash[2]), SizeOf(Cardinal));
     ClientHash := GetCustomHeader(Context.InHeaders, 'IF-NONE-MATCH:');
-    Result := ClientHash <> ServerHash;
-    if Result then
-      Context.OutCustomHeaders := FormatUTF8('%ETag: %'#$D#$A,
-        [Context.OutCustomHeaders, ServerHash]);
+    if ClientHash <> ServerHash then
+    begin
+      AddCustomHeader(Context, 'ETag', FormatUTF8('%', [ServerHash]));
+      Result := True;
+    end;
   end;
 
-  if not Result and CheckModified then
+  if CheckModified then
   begin
-    ServerModified := DateTimeToHTTPDate(Asset.Timestamp);
+    ServerModified := UnixTimeToHTTPDate(Asset.Timestamp);
     ClientModified := GetCustomHeader(Context.InHeaders, 'IF-MODIFIED-SINCE:');
-    Result := (ClientModified = '') or
-      (StrIComp(Pointer(ClientModified), Pointer(ServerModified)) <> 0);
-    if Result then
-      Context.OutCustomHeaders := FormatUTF8('%Last-Modified: %'#$D#$A,
-        [Context.OutCustomHeaders, ServerModified]);
+    if (ClientModified = '') or
+      (StrIComp(Pointer(ClientModified), Pointer(ServerModified)) <> 0) then
+    begin
+      AddCustomHeader(Context, 'Last-Modified', ServerModified);
+      Result := True;
+    end;
   end;
 end;
 
@@ -1772,6 +1793,9 @@ const
   CACHE_NO_STORE: ShortString = ', no-store';
   CACHE_MUST_REVALIDATE: ShortString = ', must-revalidate';
   CACHE_MAX_AGE: ShortString = ', max-age=';
+  ASSET_TYPE_REDIRECTIONS: array[THTTPAssetType] of Cardinal = (
+    HTTP_NONE, HTTP_NONE, HTTP_MOVEDPERMANENTLY, HTTP_FOUND, HTTP_SEEOTHER,
+    HTTP_TEMPORARYREDIRECT, 308);
 var
   Asset: PAsset;
   AssetEncoding: TAssetEncoding;
@@ -1788,6 +1812,47 @@ var
   Vary: RawUTF8;
   P, PInt: PAnsiChar;
   Len: PtrInt;
+  ExternalAsset: TAsset;
+  ExternalAssetType: THTTPAssetType;
+
+  // Returns True when external Asset redirection is required
+  function RetrieveExternalAsset(const Path: RawUTF8;
+    var ResponseCode: Cardinal): Boolean;
+  begin
+    ExternalAsset.Clear;
+    ExternalAssetType := Low(THTTPAssetType);
+    if not FOnGetAsset(Path, ExternalAssetType, ExternalAsset) then
+      Result := False
+    else begin
+      Asset := @ExternalAsset;
+      Result := ExternalAssetType in [atMovedPermanentlyRedirect,
+        atFoundRedirect, atSeeOtherRedirect, atTemporaryRedirect,
+        atPermanentRedirect];
+      if Result then
+      begin
+        if IdemPChar(Pointer(ExternalAsset.Content), 'HTTP://') or
+          IdemPChar(Pointer(ExternalAsset.Content), 'HTTPS://')  then
+        begin
+          AddCustomHeader(Context, 'Location', ExternalAsset.Content);
+          ResponseCode := ASSET_TYPE_REDIRECTIONS[ExternalAssetType];
+          Result := True;
+        end else begin
+          Host := GetCustomHeader(Context.InHeaders, 'HOST:');
+          if Host <> '' then
+          begin
+            AddCustomHeader(Context, 'Location', FormatUTF8('%%%',
+              [HTTPS[Context.UseSSL], Host, ExternalAsset.Content]));
+            ResponseCode := ASSET_TYPE_REDIRECTIONS[ExternalAssetType];
+            Result := True;
+          end else begin
+            Asset := nil;
+            Result := False;
+          end;
+        end;
+      end;
+    end;
+  end;
+
 begin
   SplitURL(Context.URL, Path, ExtUp, bpoEnableCacheBusting in FOptions,
     bpoEnableCacheBustingBeforeExt in FOptions);
@@ -1850,12 +1915,18 @@ begin
   if StrIComp(Pointer(Context.Method), PAnsiChar('GET')) = 0 then
   begin
     Asset := FAssets.Find(Path);
+    if (Asset = nil) and Assigned(FOnGetAsset) then
+      if RetrieveExternalAsset(Path, Result) then Exit;
+
     if Asset = nil then
     begin
       PathLowerCased := LowerCase(Path);
       if PathLowerCased <> Path then
       begin
         Asset := FAssets.Find(PathLowerCased);
+        if (Asset = nil) and Assigned(FOnGetAsset) then
+          if RetrieveExternalAsset(PathLowerCased, Result) then Exit;
+
         if RedirectServerRootUriForExactCase and (Asset <> nil) then
         begin
           Host := GetCustomHeader(Context.InHeaders, 'HOST:');
@@ -1943,7 +2014,11 @@ begin
       with Context do
         Prepare('/404.html', Method, InHeaders, InContent, InContentType,
           RemoteIP, UseSSL);
+
       Asset := FAssets.Find('/404.html');
+      if (Asset = nil) and Assigned(FOnGetAsset) then
+        if RetrieveExternalAsset('/404.html', Result) then Exit;
+
       if Asset <> nil then
       begin
         Context.OutContentType := Asset.ContentType;
@@ -2152,7 +2227,7 @@ begin
     if not ExpiresDefined then
       Expires := GetExpires(ContentTypeUp);
     AddCustomHeader(Context, 'Expires',
-      DateTimeToHTTPDate(NowUTC + Expires / SecsPerDay));
+      UnixTimeToHTTPDate(UnixTimeUTC + Expires));
   end;
 
   if bpoDeleteServerInternalState in LOptions then
@@ -2177,13 +2252,31 @@ begin
       else
         AddCustomHeader(Context, 'X-DNS-Prefetch-Control', 'off');
 
-  if (Asset <> nil) and (FStaticRoot <> '') then
-  begin
-    AddCustomHeader(Context, 'Content-Type', Context.OutContentType);
-    Context.OutContentType := HTTP_RESP_STATICFILE;
-    Context.OutContent :=
-      SockString(Asset.SaveToFile(FStaticRoot, AssetEncoding));
-  end;
+  if Asset <> nil then
+    if (FStaticRoot <> '') and (
+      (Asset <> @ExternalAsset) or
+      (Asset = @ExternalAsset) and (ExternalAssetType <> atFile)) then
+    begin
+      AddCustomHeader(Context, 'Content-Type', Context.OutContentType);
+      Context.OutContentType := HTTP_RESP_STATICFILE;
+      Context.OutContent :=
+        SockString(Asset.SaveToFile(FStaticRoot, AssetEncoding));
+    end else if (Asset = @ExternalAsset) and (ExternalAssetType = atFile) then
+    begin
+      AddCustomHeader(Context, 'Content-Type', Context.OutContentType);
+      Context.OutContentType := HTTP_RESP_STATICFILE;
+      case AssetEncoding of
+        aeIdentity:
+          Context.OutContent := ExternalAsset.Content;
+        aeGZip:
+          Context.OutContent := ExternalAsset.GZipContent;
+        aeBrotli:
+          Context.OutContent := ExternalAsset.BrotliContent;
+        else
+          raise EHttpServerException.CreateUTF8(
+            'Unknown AssetEncoding=%', [Ord(AssetEncoding)]);
+      end;
+    end;
 end;
 
 procedure TBoilerplateHTTPServer.SetDNSPrefetchControlContentTypes(
@@ -2371,6 +2464,22 @@ begin
       UpperCase(Copy(URLPath, 1, Length(URLPath) - 1)))
   else
     FCustomOptions.Delete(URLPath);
+end;
+
+function TBoilerplateHTTPServer.UnixTimeToHTTPDate(
+  const Value: TUnixTime): RawUTF8;
+var
+  TimeLog: TTimeLog;
+  SystemTime: TSynSystemTime;
+begin
+  if Value = 0 then
+    Result := ''
+  else begin
+    PTimeLogBits(@TimeLog).FromUnixTime(Value);
+    PTimeLogBits(@TimeLog).Expand(SystemTime);
+    SystemTime.ComputeDayOfWeek;
+    SystemTime.ToHTTPDate(Result);
+  end;
 end;
 
 procedure TBoilerplateHTTPServer.UnregisterCustomOptions(

@@ -60,6 +60,7 @@ type
     procedure UpdateStaticAsset;
     procedure SetVaryAcceptEncoding;
     procedure SupportDNSPrefetchControl;
+    procedure SupportExternalAssets;
   end;
 
   TCSP2Should = class(TSynTestCase)
@@ -169,11 +170,15 @@ type
     FServerAccessRights: TSQLAccessRights;
     FApplication: IBoilerplateApplication;
     FContext: THttpServerRequestStub;
+    FExternalAsset: TAsset;
+    FExternalAssetType: THTTPAssetType;
   public
     function FullFileName(const FileName: string): string;
     procedure DeleteFile(const FileName: string);
     procedure RemoveDir(const FileName: string);
     function GetFileContent(const FileName: TFileName): RawByteString;
+    function GetExternalAsset(const Path: RawUTF8;
+      var AssetType: THTTPAssetType; var Asset: TAsset): Boolean;
   public
     constructor Create(const TestCase: TSynTestCase;
       const Auth: Boolean = False; AApplication: IBoilerplateApplication = nil;
@@ -181,6 +186,11 @@ type
     destructor Destroy; override;
     procedure GivenClearServer;
     procedure GivenAssets(const Name: string = 'ASSETS');
+    procedure GivenExternalAsset(const AssetType: THTTPAssetType;
+      const APath: RawUTF8; const ATimestamp: TUnixTime;
+      const AContentType: RawUTF8; const AGZipExists, ABrotliExists: Boolean;
+      const AContent, AGZipContent, ABrotliContent: RawByteString;
+      const AContentHash, AGZipHash, ABrotliHash: Cardinal);
     procedure GivenOptions(const AOptions: TBoilerplateOptions);
     procedure GivenInHeader(const aName, aValue: RawUTF8);
     procedure GivenOutHeader(const aName, aValue: RawUTF8);
@@ -201,6 +211,7 @@ type
     procedure WhenRequest(const URL: SockString = '';
       const Host: SockString = ''; const UseSSL: Boolean = False;
       const Method: SockString = 'GET');
+    procedure ThenRequestResultIs(const Value: Cardinal);
     procedure ThenOutHeaderValueIs(const aName, aValue: RawUTF8);
     procedure ThenOutContentIsEmpty;
     procedure ThenOutContentEqualsFile(const FileName: TFileName); overload;
@@ -209,14 +220,13 @@ type
     procedure ThenOutContentTypeIs(const Value: RawUTF8);
     procedure ThenOutContentIs(const Value: RawByteString);
     procedure ThenOutContentIsStatic(const FileName: TFileName);
-    procedure ThenRequestResultIs(const Value: Cardinal);
-    procedure ThenApp404Called;
-    procedure ThenFileTimeStampAndSizeIsEqualToAsset(const FileName: TFileName;
+    procedure ThenFileTimestampAndSizeAreEqualToAsset(const FileName: TFileName;
       const Path: RawUTF8);
     procedure ThenFileContentIsEqualToAsset(const FileName: TFileName;
       const Path: RawUTF8);
     procedure ThenFileContentIsNotEqualToAsset(const FileName: TFileName;
       const Path: RawUTF8);
+    procedure ThenApp404Called;
   end;
 
 { TBoilerplateApplication }
@@ -254,11 +264,18 @@ begin
   Result.Helpers := nil;
 end;
 
+function NormalizeFileName(const FileName: TFileName): TFileName;
+begin
+  Result := FileName;
+  Result := StringReplace(Result, '\', PathDelim, [rfReplaceAll]);
+  Result := StringReplace(Result, '/', PathDelim, [rfReplaceAll]);
+end;
+
 { TBoilerplateHTTPServerShould }
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOrigin;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -283,7 +300,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForFonts;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -315,7 +332,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginForImages;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -347,7 +364,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SpecifyCrossOriginTiming;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -371,7 +388,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportContentSecurityPolicy;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
   CSP: TCSP3;
 begin
@@ -442,7 +459,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportDNSPrefetchControl;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -566,15 +583,346 @@ begin
   end;
 end;
 
-{$IF DEFINED(VER170) OR DEFINED(VER180)}{$HINTS OFF}{$IFEND}
-procedure TBoilerplateHTTPServerShould.SupportStaticRoot;
+procedure TBoilerplateHTTPServerShould.SupportExternalAssets;
+const
+  HTTP_PERMANENT_REDIRECT = 308;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
   with Steps do
   begin
+    // Non-existed external asset
+    GivenClearServer;
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+
+    // External asset returns identity Content, Content-Type, and Last-Modified
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByLastModified]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', False, False,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutContentTypeIs('test-content-type');
+    ThenOutHeaderValueIs('Last-Modified', UnixTimeToHTTPDate(
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6))));
+    ThenOutContentIs('identity-content');
+
+    // External asset returns identity Content, Content-Type, and ETag
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', False, False,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutContentTypeIs('test-content-type');
+    ThenOutHeaderValueIs('ETag', '"12345678"');
+    ThenOutContentIs('identity-content');
+
+    // External asset returns gzip-compressed Content and ETag
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, False,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutContentTypeIs('test-content-type');
+    ThenOutHeaderValueIs('ETag', '"23456781"');
+    ThenOutContentIs('gzip-content');
+
+    // External asset returns brotli-compressed Content and ETag
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', False, True,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutContentTypeIs('test-content-type');
+    ThenOutHeaderValueIs('ETag', '"34567812"');
+    ThenOutContentIs('brotli-content');
+
+    // Content prefers brotli over gzip compression when both are available
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, True,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutContentTypeIs('test-content-type');
+    ThenOutHeaderValueIs('ETag', '"34567812"');
+    ThenOutContentIs('brotli-content');
+
+    // Returns gzip-compressed content if the brotli is not accepted
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag]);
+    GivenInHeader('Accept-Encoding', 'gzip');
+    GivenExternalAsset(atContent, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, True,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutContentTypeIs('test-content-type');
+    ThenOutHeaderValueIs('ETag', '"23456781"');
+    ThenOutContentIs('gzip-content');
+
+    // Return identity content from an external file
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag, bpoEnableCacheByLastModified]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atFile, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', False, False,
+      RawByteString(NormalizeFileName('Assets\index.html')),
+      RawByteString(NormalizeFileName('Assets\index.html.gz')),
+      RawByteString(NormalizeFileName('Assets\index.html.br')),
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('Content-Type', 'test-content-type');
+    ThenOutHeaderValueIs('ETag', '"12345678"');
+    ThenOutHeaderValueIs('Last-Modified', UnixTimeToHTTPDate(
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6))));
+    ThenOutContentIsStatic(NormalizeFileName('Assets\index.html'));
+
+    // Return gzip-compressed content from an external file
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag, bpoEnableCacheByLastModified]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atFile, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, False,
+      RawByteString(NormalizeFileName('Assets\index.html')),
+      RawByteString(NormalizeFileName('Assets\index.html.gz')),
+      RawByteString(NormalizeFileName('Assets\index.html.br')),
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('Content-Type', 'test-content-type');
+    ThenOutHeaderValueIs('ETag', '"23456781"');
+    ThenOutHeaderValueIs('Last-Modified', UnixTimeToHTTPDate(
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6))));
+    ThenOutContentIsStatic(NormalizeFileName('Assets\index.html.gz'));
+
+    // Return brotli-compressed content from an external file
+    GivenClearServer;
+    GivenOptions([bpoEnableCacheByETag, bpoEnableCacheByLastModified]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atFile, '/external-asset',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, True,
+      RawByteString(NormalizeFileName('Assets\index.html')),
+      RawByteString(NormalizeFileName('Assets\index.html.gz')),
+      RawByteString(NormalizeFileName('Assets\index.html.br')),
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_SUCCESS);
+    ThenOutHeaderValueIs('Content-Type', 'test-content-type');
+    ThenOutHeaderValueIs('ETag', '"34567812"');
+    ThenOutHeaderValueIs('Last-Modified', UnixTimeToHTTPDate(
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6))));
+    ThenOutContentIsStatic(NormalizeFileName('Assets\index.html.br'));
+
+    // Return 301 Moved Permanently redirection to another location
+    GivenClearServer;
+    GivenExternalAsset(atMovedPermanentlyRedirect, '/external-asset', 0, '',
+      False, False, '/another-asset', '', '', 0, 0, 0);
+    WhenRequest('/external-asset', 'domain.com');
+    ThenRequestResultIs(HTTP_MOVEDPERMANENTLY);
+    ThenOutHeaderValueIs('Location', 'http://domain.com/another-asset');
+    ThenOutContentIsEmpty;
+
+    // Return 302 Found redirection to another location
+    GivenClearServer;
+    GivenExternalAsset(atFoundRedirect, '/external-asset', 0, '',
+      False, False, '/another-asset', '', '', 0, 0, 0);
+    WhenRequest('/external-asset', 'domain.com');
+    ThenRequestResultIs(HTTP_FOUND);
+    ThenOutHeaderValueIs('Location', 'http://domain.com/another-asset');
+    ThenOutContentIsEmpty;
+
+    // Return 303 See Other redirection to another location
+    GivenClearServer;
+    GivenExternalAsset(atSeeOtherRedirect, '/external-asset', 0, '',
+      False, False, '/another-asset', '', '', 0, 0, 0);
+    WhenRequest('/external-asset', 'domain.com');
+    ThenRequestResultIs(HTTP_SEEOTHER);
+    ThenOutHeaderValueIs('Location', 'http://domain.com/another-asset');
+    ThenOutContentIsEmpty;
+
+    // Return 307 Temporary Redirect redirection to another location
+    GivenClearServer;
+    GivenExternalAsset(atTemporaryRedirect, '/external-asset', 0, '',
+      False, False, '/another-asset', '', '', 0, 0, 0);
+    WhenRequest('/external-asset', 'domain.com');
+    ThenRequestResultIs(HTTP_TEMPORARYREDIRECT);
+    ThenOutHeaderValueIs('Location', 'http://domain.com/another-asset');
+    ThenOutContentIsEmpty;
+
+    // Return 308 Permanent Redirect redirection to another location
+    GivenClearServer;
+    GivenExternalAsset(atPermanentRedirect, '/external-asset', 0, '',
+      False, False, '/another-asset', '', '', 0, 0, 0);
+    WhenRequest('/external-asset', 'domain.com');
+    ThenRequestResultIs(HTTP_PERMANENT_REDIRECT);
+    ThenOutHeaderValueIs('Location', 'http://domain.com/another-asset');
+    ThenOutContentIsEmpty;
+
+    // Return Not Found when Host header is not provided
+    GivenClearServer;
+    GivenExternalAsset(atMovedPermanentlyRedirect, '/external-asset', 0, '',
+      False, False, '/another-asset', '', '', 0, 0, 0);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutContentIsEmpty;
+
+    // Redirect to full qualified URL even if Host header is not provided
+    GivenClearServer;
+    GivenExternalAsset(atTemporaryRedirect, '/external-asset', 0, '',
+      False, False, 'https://another-domain.com/asset', '', '', 0, 0, 0);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_TEMPORARYREDIRECT);
+    ThenOutHeaderValueIs('Location', 'https://another-domain.com/asset');
+    ThenOutContentIsEmpty;
+
+    // External '/404.html' identity content for the 404 responses
+    GivenClearServer;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/404.html',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', False, False,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutContentIs('identity-content');
+
+    // External '/404.html' gzip-compressed content for 404 responses
+    GivenClearServer;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/404.html',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, False,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutContentIs('gzip-content');
+
+    // External '/404.html' brotli-compressed content for 404 responses
+    GivenClearServer;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atContent, '/404.html',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, True,
+      'identity-content', 'gzip-content', 'brotli-content',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutContentIs('brotli-content');
+
+    // External '/404.html' identity file for the 404 responses
+    GivenClearServer;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atFile, '/404.html',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', False, False,
+      RawByteString(NormalizeFileName('Assets\index.html')),
+      RawByteString(NormalizeFileName('Assets\index.html.gz')),
+      RawByteString(NormalizeFileName('Assets\index.html.br')),
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutHeaderValueIs('Content-Type', 'test-content-type');
+    ThenOutContentIsStatic(NormalizeFileName('Assets\index.html'));
+
+    // External '/404.html' gzip-compressed file for the 404 responses
+    GivenClearServer;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atFile, '/404.html',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, False,
+      RawByteString(NormalizeFileName('Assets\index.html')),
+      RawByteString(NormalizeFileName('Assets\index.html.gz')),
+      RawByteString(NormalizeFileName('Assets\index.html.br')),
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutHeaderValueIs('Content-Type', 'test-content-type');
+    ThenOutContentIsStatic(NormalizeFileName('Assets\index.html.gz'));
+
+    // External '/404.html' brotli-compressed file for the 404 responses
+    GivenClearServer;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atFile, '/404.html',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      'test-content-type', True, True,
+      RawByteString(NormalizeFileName('Assets\index.html')),
+      RawByteString(NormalizeFileName('Assets\index.html.gz')),
+      RawByteString(NormalizeFileName('Assets\index.html.br')),
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_NOTFOUND);
+    ThenOutHeaderValueIs('Content-Type', 'test-content-type');
+    ThenOutContentIsStatic(NormalizeFileName('Assets\index.html.br'));
+
+    // Redirection on '/404.html' content retrieval
+    GivenClearServer;
+    GivenOptions([bpoDelegateNotFoundTo404]);
+    GivenInHeader('Accept-Encoding', 'gzip, br');
+    GivenExternalAsset(atTemporaryRedirect, '/404.html',
+      DateTimeToUnixTime(EncodeDate(2000, 1, 2) + EncodeTime(3, 4, 5, 6)),
+      '', False, False, 'https://another-domain.com/asset', '', '',
+      $12345678, $23456781, $34567812);
+    WhenRequest('/external-asset');
+    ThenRequestResultIs(HTTP_TEMPORARYREDIRECT);
+    ThenOutHeaderValueIs('Location', 'https://another-domain.com/asset');
+    ThenOutContentIsEmpty;
+  end;
+end;
+
+{$IF DEFINED(VER170) OR DEFINED(VER180)}{$HINTS OFF}{$IFEND}
+procedure TBoilerplateHTTPServerShould.SupportStaticRoot;
+var
+  Auto: IAutoFree;
+  Steps: TBoilerplateHTTPServerSteps;
+begin
+  Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
+  with Steps do
+  begin
+    DeleteFile('static\identity\index.html');
+    RemoveDir('static\identity');
+    RemoveDir('static');
+
     GivenClearServer;
     GivenAssets;
     GivenStaticRoot('static');
@@ -615,7 +963,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportStrictSSLOverHTTP;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -660,7 +1008,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportStrictSSLOverHTTPS;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -704,7 +1052,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SupportWWWRewrite;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -760,7 +1108,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.UnregisterCustomOptions;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -795,7 +1143,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.UpdateStaticAsset;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -807,7 +1155,7 @@ begin
     GivenStaticFile('/index.html');
     GivenModifiedFile('static\identity\index.html', True, True);
     WhenRequest('/index.html');
-    ThenFileTimeStampAndSizeIsEqualToAsset(
+    ThenFileTimestampAndSizeAreEqualToAsset(
       'static\identity\index.html', '/index.html');
     ThenFileContentIsNotEqualToAsset(
       'static\identity\index.html', '/index.html');
@@ -847,7 +1195,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.CallInherited;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -861,7 +1209,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.Delegate404ToInherited_404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -885,7 +1233,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateBadRequestTo404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -907,7 +1255,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateBlocked;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -959,7 +1307,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateForbiddenTo404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, True));
@@ -981,7 +1329,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateHidden;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1037,7 +1385,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateNotAcceptableTo404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(
@@ -1061,7 +1409,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateNotAllowedTo404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(
@@ -1084,7 +1432,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateNotFoundTo404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1106,7 +1454,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateRootToIndex;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1144,7 +1492,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateUnauthorizedTo404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(
@@ -1168,7 +1516,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DeleteServerInternalState;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1190,7 +1538,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DeleteXPoweredBy;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1216,7 +1564,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DisableTRACEMethod;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1238,7 +1586,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheBusting;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1268,7 +1616,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheBustingBeforeExt;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1291,7 +1639,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheByETag;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
   Hash: RawUTF8;
 begin
@@ -1339,7 +1687,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableCacheByLastModified;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
   LastModified: RawUTF8;
 begin
@@ -1348,7 +1696,8 @@ begin
   begin
     GivenClearServer;
     GivenAssets;
-    LastModified := DateTimeToHTTPDate(FAssets.Find('/index.html').Timestamp);
+
+    LastModified := UnixTimeToHTTPDate(FAssets.Find('/index.html').Timestamp);
 
     GivenClearServer;
     GivenAssets;
@@ -1388,7 +1737,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableReferrerPolicy;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1470,7 +1819,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.EnableXSSFilter;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1508,7 +1857,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.FixMangledAcceptEncoding;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1548,7 +1897,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceGZipHeader;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1573,7 +1922,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceHTTPS;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1597,7 +1946,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceHTTPSExceptLetsEncrypt;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1670,7 +2019,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateIndexToInheritedDefault;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1694,7 +2043,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.DelegateIndexToInheritedDefaultOverSSL;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps,
@@ -1712,7 +2061,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceMIMEType;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1863,7 +2212,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.LoadAndReturnAssets;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1928,7 +2277,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.PreventMIMESniffing;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -1954,7 +2303,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.RedirectInInherited_404;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self, False,
@@ -1970,7 +2319,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.RegisterCustomOptions;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2027,7 +2376,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceTextUTF8Charset;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2057,7 +2406,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ForceUTF8Charset;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2077,7 +2426,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.ServeExactCaseURL;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2109,7 +2458,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCacheMaxAge;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2239,7 +2588,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCacheNoTransform;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2263,7 +2612,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetCachePublic;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2330,7 +2679,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetExpires;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
   LExpires: RawUTF8;
 begin
@@ -2346,7 +2695,7 @@ begin
     GivenClearServer;
     GivenAssets;
     GivenOptions([bpoSetExpires]);
-    LExpires := DateTimeToHTTPDate(NowUTC);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2354,7 +2703,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('*=12');
-    LExpires := DateTimeToHTTPDate(NowUTC + 12 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 12);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2362,7 +2711,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=10');
-    LExpires := DateTimeToHTTPDate(NowUTC + 10 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 10);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2370,7 +2719,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=15s');
-    LExpires := DateTimeToHTTPDate(NowUTC + 15 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 15);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2378,7 +2727,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=20S');
-    LExpires := DateTimeToHTTPDate(NowUTC + 20 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 20);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2386,7 +2735,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=25h');
-    LExpires := DateTimeToHTTPDate(NowUTC + 25 * SecsPerHour / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 25 * SecsPerHour);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2394,7 +2743,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=30H');
-    LExpires := DateTimeToHTTPDate(NowUTC + 30 * SecsPerHour / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 30 * SecsPerHour);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2402,7 +2751,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=35d');
-    LExpires := DateTimeToHTTPDate(NowUTC + 35);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 35 * SecsPerDay);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2410,7 +2759,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=40D');
-    LExpires := DateTimeToHTTPDate(NowUTC + 40);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 40 * SecsPerDay);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2418,7 +2767,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=45w');
-    LExpires := DateTimeToHTTPDate(NowUTC + 45 * 7);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 45 * 7 * SecsPerDay);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2426,7 +2775,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=50W');
-    LExpires := DateTimeToHTTPDate(NowUTC + 50 * 7);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 50 * 7 * SecsPerDay);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2434,7 +2783,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=6m');
-    LExpires := DateTimeToHTTPDate(NowUTC + 6 * 2629746 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 6 * 2629746);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2442,7 +2791,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=7M');
-    LExpires := DateTimeToHTTPDate(NowUTC + 7 * 2629746 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 7 * 2629746);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2450,7 +2799,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=8y');
-    LExpires := DateTimeToHTTPDate(NowUTC + 8 * 12 * 2629746 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 8 * 12 * 2629746);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
 
@@ -2458,7 +2807,7 @@ begin
     GivenAssets;
     GivenOptions([bpoSetExpires]);
     GivenExpires('text/html=9Y');
-    LExpires := DateTimeToHTTPDate(NowUTC + 9 * 12 * 2629746 / SecsPerDay);
+    LExpires := UnixTimeToHTTPDate(UnixTimeUTC + 9 * 12 * 2629746);
     WhenRequest('/index.html');
     ThenOutHeaderValueIs('Expires', LExpires);
   end;
@@ -2466,7 +2815,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetVaryAcceptEncoding;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2508,7 +2857,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetXFrameOptions;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -2546,7 +2895,7 @@ end;
 
 procedure TBoilerplateHTTPServerShould.SetXUACompatible;
 var
-  Auto: IAutoFree; // This variable required only under FPC
+  Auto: IAutoFree;
   Steps: TBoilerplateHTTPServerSteps;
 begin
   Auto := TAutoFree.One(Steps, TBoilerplateHTTPServerSteps.Create(Self));
@@ -3968,8 +4317,7 @@ end;
 
 procedure TBoilerplateHTTPServerSteps.RemoveDir(const FileName: string);
 begin
-  SysUtils.RemoveDir(
-    StringReplace(FullFileName(FileName), '\', PathDelim, [rfReplaceAll]));
+  SysUtils.RemoveDir(NormalizeFileName(FullFileName(FileName)));
 end;
 
 procedure TBoilerplateHTTPServerSteps.GivenClearServer;
@@ -4007,6 +4355,30 @@ begin
   DNSPrefetchControlContentTypes := Value;
 end;
 
+procedure TBoilerplateHTTPServerSteps.GivenExternalAsset(
+  const AssetType: THTTPAssetType; const APath: RawUTF8;
+  const ATimestamp: TUnixTime; const AContentType: RawUTF8;
+  const AGZipExists, ABrotliExists: Boolean;
+  const AContent, AGZipContent, ABrotliContent: RawByteString;
+  const AContentHash, AGZipHash, ABrotliHash: Cardinal);
+begin
+  FExternalAssetType := AssetType;
+  with FExternalAsset do
+  begin
+    Path := APath;
+    Timestamp := ATimestamp;
+    Content := AContent;
+    ContentHash := AContentHash;
+    ContentType := AContentType;
+    GZipExists := AGZipExists;
+    GZipContent := AGZipContent;
+    GZipHash := AGZipHash;
+    BrotliExists := ABrotliExists;
+    BrotliContent := ABrotliContent;
+    BrotliHash := ABrotliHash;
+  end;
+end;
+
 procedure TBoilerplateHTTPServerSteps.GivenModifiedFile(
   const FileName: TFileName;
   const KeepTimeStamp, KeepSize: Boolean);
@@ -4014,18 +4386,17 @@ const
   ADD_BYTE: array[Boolean] of Integer = (0, 1);
 var
   LFileName: string;
-  Modified: TDateTime;
+  Modified: TUnixTime;
   Size: Int64;
 begin
-  LFileName := StringReplace(
-    FullFileName(FileName), '\', PathDelim, [rfReplaceAll]);
+  LFileName := NormalizeFileName(FileName);
   GetFileInfo(LFileName, @Modified, @Size);
   FileFromString(
     ToUTF8(StringOfChar(#0, Size + ADD_BYTE[not KeepSize])), LFileName, True);
   if KeepTimeStamp then
     SetFileTime(LFileName, Modified)
   else
-    SetFileTime(LFileName, NowUTC);
+    SetFileTime(LFileName, UnixTimeUTC);
 end;
 
 procedure TBoilerplateHTTPServerSteps.GivenExpires(const Value: RawUTF8);
@@ -4033,13 +4404,23 @@ begin
   Expires := Value;
 end;
 
+function TBoilerplateHTTPServerSteps.GetExternalAsset(const Path: RawUTF8;
+  var AssetType: THTTPAssetType; var Asset: TAsset): Boolean;
+begin
+  Result := (Path <> '') and (Path = FExternalAsset.Path);
+  if Result then
+  begin
+    Asset.Assign(FExternalAsset);
+    AssetType := FExternalAssetType;
+  end;
+end;
+
 function TBoilerplateHTTPServerSteps.GetFileContent(
   const FileName: TFileName): RawByteString;
 var
   LFileName: string;
 begin
-  LFileName := StringReplace(
-    FullFileName(FileName), '\', PathDelim, [rfReplaceAll]);
+  LFileName := NormalizeFileName(FullFileName(FileName));
   FTestCase.CheckUTF8(FileExists(LFileName),
     'File not found ''%''', [LFileName]);
   Result := StringFromFile(LFileName);
@@ -4081,6 +4462,7 @@ begin
     @FServerAccessRights, 2, SERVER_SECURITY[AUseSSL]);
   DomainHostRedirect('127.0.0.1', 'root');
   DomainHostRedirect('localhost', 'root');
+  OnGetAsset := GetExternalAsset;
 end;
 
 procedure TBoilerplateHTTPServerSteps.ThenRequestResultIs(const Value: Cardinal);
@@ -4091,8 +4473,7 @@ end;
 
 procedure TBoilerplateHTTPServerSteps.DeleteFile(const FileName: string);
 begin
-  SysUtils.DeleteFile(
-    StringReplace(FullFileName(FileName), '\', PathDelim, [rfReplaceAll]));
+  SysUtils.DeleteFile(NormalizeFileName(FullFileName(FileName)));
 end;
 
 destructor TBoilerplateHTTPServerSteps.Destroy;
@@ -4145,21 +4526,19 @@ begin
     [FileName, Path]);
 end;
 
-procedure TBoilerplateHTTPServerSteps.ThenFileTimeStampAndSizeIsEqualToAsset(
+procedure TBoilerplateHTTPServerSteps.ThenFileTimestampAndSizeAreEqualToAsset(
   const FileName: TFileName; const Path: RawUTF8);
 var
   Asset: PAsset;
-  Modified: TDateTime;
+  Modified: TUnixTime;
   Size: Int64;
 begin
   Asset := FAssets.Find(Path);
   FTestCase.CheckUTF8(Asset <> nil, 'Asset not found ''%''', [Path]);
   FTestCase.CheckUTF8(
-    GetFileInfo(
-      StringReplace(FullFileName(FileName), '\', PathDelim, [rfReplaceAll]),
-        @Modified, @Size),
+    GetFileInfo(NormalizeFileName(FullFileName(FileName)), @Modified, @Size),
     'GetFileInfo failed ''%''', [FileName]);
-  FTestCase.CheckUTF8(Round((Modified - Asset.Timestamp) * SecsPerDay) = 0,
+  FTestCase.CheckUTF8(Modified = Asset.Timestamp,
     'File modified are not equal to asset file=%, asset=%', [
       FormatDateTime('YYYY-MM-DD HH:NN:SS.ZZZ', Modified),
       FormatDateTime('YYYY-MM-DD HH:NN:SS.ZZZ', Asset.Timestamp)]);
@@ -4225,7 +4604,7 @@ begin
     'OutContentIsStatic expected=''%'', actual=''%''',
     [HTTP_RESP_STATICFILE, FContext.OutContentType]);
 
-  LFileName := StringReplace(FileName, '\',PathDelim, [rfReplaceAll]);
+  LFileName := NormalizeFileName(FileName);
   FTestCase.CheckUTF8(TFileName(FContext.OutContent) = LFileName,
     'OutContentIsStatic expected=''%'', actual=''%''',
     [LFileName, FContext.OutContent]);

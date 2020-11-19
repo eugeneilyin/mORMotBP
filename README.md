@@ -40,7 +40,7 @@ This project is embedding of **HTML5 Boilerplate** assets and settings into **Sy
 * Apply many HTTP headers corrections following **HTML5 Boilerplate** settings.
 * Support **Content Security Policy** Level 2 / Level 3 (see `CSP.pas` unit for details).
 * Support **1490 MIME Types** file extensions combined from IANA, Apache, and Mozilla.
-* Support external computable Assets and URL requests with content/file transfers, cache and redirects (See `.OnGetAsset` event)
+* Support external computable Assets and URL requests with content/file transfers and redirects (see `.OnGetAsset` event)
 * You can safely replace anywhere your **TSQLHttpServer** with `TBoilerplateHTTPServer = class(TSQLHttpServer)`.
 
 ## Lazarus Free Pascal support
@@ -130,6 +130,18 @@ uses
     HttpServer.RegisterCompress(CompressBrotli);
     HttpServer.RegisterCompress(CompressGZip);
 ```
+## External, dynamic, computable Assets usage and custom redirects
+
+You can provide your own computable Assets and redirects. This is usefull for:
+  * Dynamically compute content
+  * Return custom redirects for any requests, which open you an abiliti of projects migrations, A/B testing, synthetic/deprecated links support, etc.
+  * Precache rare updated dynamic content and compress it with GZip, Zopfli, or Brotli.
+  * Transferring of any stored files to clients.
+  * Custom dynamic `/404.html` content service.
+
+Just provide your own `BoilerplateHTTPServer.OnGetAsset` event handler and ensure that modifiable resources are handled with multi-thread support.
+All external assets support `ETag`, `Last-Modified` cache strategies based on the provided `Timestamp` property and can be statically upload to storage (for example to delegate content tranfer to low level http API).
+The same method can be used to return custom redirections for specific paths.
 
 ## Advanced `TAssets` usage
 

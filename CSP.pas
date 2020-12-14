@@ -834,7 +834,7 @@ type
     /// Add 'require-sri-for' extension directive
     // https://www.w3.org/TR/SRI/
     function RequireSRIFor(const ASRIRequire: TCSP3SRIRequire): PCSP3;
-      {$IFDEF HASINLINE} inline; {$ENDIF}
+      deprecated; {$IFDEF HASINLINE} inline; {$ENDIF}
 
     /// Computes and cache security policy content
     function Policy: SockString;

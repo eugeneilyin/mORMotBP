@@ -47,7 +47,6 @@ program mORMotBPDemo;
 
 uses
   {$I SynDprUses.inc} // enable FastMM4 prior to Delphi 2006, and enable FPC on Linux
-  SysUtils,
   SynCommons,
   mORMot,
   mORMotHttpServer,

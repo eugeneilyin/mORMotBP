@@ -134,14 +134,14 @@ uses
 
 You can provide your own computable Assets and redirects. This is usefull for:
   * Dynamically compute content
-  * Return custom redirects for any requests, which open you an abiliti of projects migrations, A/B testing, synthetic/deprecated links support, etc.
-  * Precache rare updated dynamic content and compress it with GZip, Zopfli, or Brotli.
+  * Return custom redirects for any requests, which open you an ability of projects migrations, A/B testing, synthetic/deprecated links support, etc.
+  * Precache rare-updated dynamic content and compress it with GZip, Zopfli, or Brotli.
   * Transferring of any stored files to clients.
   * Custom dynamic `/404.html` content service.
 
-Just provide your own `BoilerplateHTTPServer.OnGetAsset` event handler and ensure that modifiable resources are handled with multi-thread support.
+Use `BoilerplateHTTPServer.OnGetAsset` event handler and ensure that modifiable resources are handled with multi-thread support.
 All external assets support `ETag`, `Last-Modified` cache strategies based on the provided `Timestamp` property and can be statically upload to storage (for example to delegate content tranfer to low level http API).
-The same method can be used to return custom redirections for specific paths.
+The same method can be used to return custom redirections for specific URL paths.
 
 ## Advanced `TAssets` usage
 

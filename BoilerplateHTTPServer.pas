@@ -1278,6 +1278,7 @@ const
     // Web Open Font Format (WOFF) 2.0
     'application/font-woff2=1m'#10 +
     'application/woff2=1m'#10 +
+    'font/woff2=1m'#10 +
 
     // Other
     'text/x-cross-domain-policy=1w'#10 +

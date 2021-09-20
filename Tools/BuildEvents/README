@@ -1,9 +1,9 @@
-This is modified version of the Build Options package from:
+This is a modified version of the Build Options package from:
 
 https://kurapaty.wordpress.com/2015/03/17/build-events-for-delphi-5-7/
 
 Besides Delphi 5/7 it was adopted to use with Delphi 6/2005/2006 to cover all 
-IDE versions which don't have Build Events feature introduced in Delphi 2007.
+IDE versions which are don't have the Build Events feature (which was introduced in Delphi 2007).
 
 To install package into IDE do the next:
 
